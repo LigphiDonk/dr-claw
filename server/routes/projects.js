@@ -13,7 +13,7 @@ function sanitizeGitError(message, token) {
 }
 
 // Configure allowed workspace root (defaults to user's home directory)
-export const WORKSPACES_ROOT = process.env.WORKSPACES_ROOT || path.join(os.homedir(), 'vibelab');
+export const WORKSPACES_ROOT = process.env.WORKSPACES_ROOT || os.homedir();
 
 // System-critical paths that should never be used as workspace directories
 export const FORBIDDEN_PATHS = [
