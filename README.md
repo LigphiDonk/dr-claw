@@ -32,7 +32,8 @@ VibeLab is a general-purpose AI research assistant designed to help researchers 
 - **🔬 Research Lab** — Structured dashboard for end-to-end research: define your brief, generate a pipeline of tasks, track progress across Ideation → Experiment → Publication, and inspect source papers, ideas (rendered with LaTeX math), and cache artifacts — all at a glance
 - **📚 100+ Research Skills** — A curated library spanning idea generation, code survey, experiment development & analysis, paper writing, review response, and delivery — automatically discovered by agents and applied as task-level assistance
 - **🗂️ Chat-Driven Pipeline** — Describe your research idea in Chat; the agent uses the `inno-pipeline-planner` skill to interactively generate a structured research brief and task list — no manual templates needed
-- **🤖 Multi-Agent Backend** — Seamlessly switch between Claude Code, Cursor CLI, and Codex as your execution engine; compatible with Claude Sonnet 4.5, Opus 4.5, and GPT-5.2
+- **🤖 Multi-Agent Backend** — Seamlessly switch between Claude Code as your execution engine; compatible with Claude Sonnet 4.5, Opus 4.5
+<!-- - Cursor CLI and Codex support coming soon; compatible with GPT-5.2 -->
 
 <details>
 <summary><span style="font-size: 1.17em; font-weight: 600;">More Features</span></summary>
@@ -52,8 +53,8 @@ VibeLab is a general-purpose AI research assistant designed to help researchers 
 - [Node.js](https://nodejs.org/) v20 or higher (**v22 LTS recommended**, see `.nvmrc`)
 - At least one of the following CLI tools installed and configured:
   - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)
-  - [Cursor CLI](https://cursor.com/cli)
-  - [Codex](https://developers.openai.com/codex/cli/)
+  <!-- - [Cursor CLI](https://cursor.com/cli) -->
+  <!-- - [Codex](https://developers.openai.com/codex/cli/) -->
 
 ### Installation
 
@@ -99,10 +100,11 @@ The core feature of VibeLab is the **Research Lab**.
 Before generating a pipeline, open **Settings** (gear icon) and configure at least one agent:
 
 - **Claude Code**: complete CLI login and verify the tool is available. If you need web search, allow `WebSearch` and `WebFetch` in Permissions.
-- **Cursor CLI**: complete CLI login and verify the tool is available. If you need web search, allow network-capable shell commands (for example `Shell(curl)`, `Shell(wget)`, `Shell(python)`).
-- **Codex**: complete CLI login and choose a suitable permission mode.
+<!-- - **Cursor CLI**: complete CLI login and verify the tool is available. If you need web search, allow network-capable shell commands (for example `Shell(curl)`, `Shell(wget)`, `Shell(python)`). -->
+<!-- - **Codex**: complete CLI login and choose a suitable permission mode. -->
 
-You only need **one** agent configured to continue. For webpage search, you can use Claude, Cursor, or Codex as long as network-related permissions are enabled for the selected agent.
+You only need **one** agent configured to continue. For webpage search, you can use Claude as long as network-related permissions are enabled.
+<!-- For webpage search, you can use Claude, Cursor, or Codex as long as network-related permissions are enabled for the selected agent. -->
 
 ### Step 1 — Open Chat and Describe Your Research Idea
 
@@ -126,7 +128,8 @@ After starting VibeLab, open your browser and follow the steps below.
 
 When you first open VibeLab you will see the **Projects** sidebar. You have two options:
 
-- **Open an existing project** — VibeLab auto-discovers projects from Claude Code, Cursor, and Codex sessions. Click any listed project to open it.
+- **Open an existing project** — VibeLab auto-discovers projects from Claude Code sessions. Click any listed project to open it.
+<!-- VibeLab also supports Cursor and Codex sessions. -->
 - **Create a new project** — Click the **"+"** button, choose a directory on your machine, and VibeLab will set up the workspace: `.claude/`, `.agents/`, `.cursor/` (with `skills/` symlinked from the app), preset dirs (`Ideation/ideas`, `Ideation/references`, `Experiment/code_references`, `Experiment/datasets`, `Experiment/core_code`, `Experiment/analysis`, `Publication/paper`, `Publication/homepage`, `Publication/slide`), and **instance.json** at the project root with absolute paths for those directories.
 
 > **Default project storage path:** New projects are stored under `~/vibelab` by default. You can change this in **Settings → Appearance → Default Project Path**, or set the `WORKSPACES_ROOT` environment variable. The setting is persisted in `~/.claude/project-config.json`.
@@ -142,11 +145,13 @@ Describe your research idea — even a rough one is fine. The agent uses the `in
 ### Step 3 — Review in Research Lab and Execute Tasks
 
 Switch to **Research Lab** to review the generated tasks, progress metrics, and artifacts. Then execute tasks:
-1. Choose a CLI backend from the **CLI selector** (Claude Code / Cursor CLI / Codex).
+1. Choose a CLI backend from the **CLI selector** (Claude Code).
+<!-- Also supports Cursor CLI / Codex. -->
 2. In **Research Lab**, click **Go to Chat** or **Use in Chat** on a pending task.
 3. The agent executes the task and writes results back to the project.
 
-### Step 4 — Enable Network Access for Web Search (Claude / Cursor / Codex)
+### Step 4 — Enable Network Access for Web Search (Claude)
+<!-- Also applies to Cursor / Codex -->
 
 If the agent cannot search webpages, your current permission settings are likely too restrictive. If web search still fails after you open permissions, ensure you have checked the **runtime network lock** in **Quick Start** (step 4) — if `CODEX_SANDBOX_NETWORK_DISABLED` is `1`, Settings alone cannot fix it.
 
@@ -156,17 +161,17 @@ If the agent cannot search webpages, your current permission settings are likely
   - Enable `WebSearch` and `WebFetch` in **Allowed Tools**.
   - Ensure they are not present in **Blocked Tools**.
   - Optionally enable **Skip permission prompts** if you want fewer confirmations.
-- **Cursor CLI**:
+<!-- - **Cursor CLI**:
   - Add required commands to **Allowed Shell Commands** (for example `Shell(curl)`, `Shell(wget)`, `Shell(python)`, `Shell(node)`).
   - Ensure they are not present in **Blocked Shell Commands**.
   - Optionally enable **Skip permission prompts** if you want fewer confirmations.
 - **Codex**:
-  - In **Permission Mode**, switch to **Bypass Permissions** when web access is required.
+  - In **Permission Mode**, switch to **Bypass Permissions** when web access is required. -->
 3. Return to **Chat**, start a new message, and retry your web-search prompt.
 
-Codex mode differences:
+<!-- Codex mode differences:
 - **Default / Accept Edits**: sandboxed execution; network may still be restricted by session policy.
-- **Bypass Permissions**: `sandboxMode=danger-full-access` with full disk and network access.
+- **Bypass Permissions**: `sandboxMode=danger-full-access` with full disk and network access. -->
 
 Security note:
 - Use permissive settings only in trusted projects/environments.
@@ -230,7 +235,8 @@ VibeLab is fully responsive. On mobile devices:
 ### Backend (Node.js + Express)
 - **Express Server** - RESTful API with static file serving
 - **WebSocket Server** - Communication for chats and project refresh
-- **Agent Integration (Claude Code / Cursor CLI / Codex)** - Process spawning and management
+- **Agent Integration (Claude Code)** - Process spawning and management
+<!-- Also supports Cursor CLI / Codex -->
 - **File System API** - Exposing file browser for projects
 
 ### Frontend (React + Vite)
@@ -299,8 +305,8 @@ This project is open source and free to use, modify, and distribute under the GP
 
 ### Built With
 - **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** - Anthropic's official CLI
-- **[Cursor CLI](https://docs.cursor.com/en/cli/overview)** - Cursor's official CLI
-- **[Codex](https://developers.openai.com/codex)** - OpenAI Codex
+<!-- - **[Cursor CLI](https://docs.cursor.com/en/cli/overview)** - Cursor's official CLI -->
+<!-- - **[Codex](https://developers.openai.com/codex)** - OpenAI Codex -->
 - **[React](https://react.dev/)** - User interface library
 - **[Vite](https://vitejs.dev/)** - Fast build tool and dev server
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
