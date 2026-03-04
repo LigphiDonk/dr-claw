@@ -296,6 +296,10 @@
       "manuscriptReview": {
         "title": "I want manuscript review",
         "description": "Run a reviewer-style check for methods, evidence, references, and writing quality."
+      },
+      "presentationPromotion": {
+        "title": "I want presentation materials",
+        "description": "Turn the paper into slides, narration scripts, TTS audio, and a demo video."
       }
     }
   },

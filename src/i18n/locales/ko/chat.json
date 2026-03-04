@@ -296,6 +296,10 @@
       "manuscriptReview": {
         "title": "원고 리뷰를 받고 싶어요",
         "description": "리뷰어 관점에서 방법, 근거, 인용, 문장 품질을 점검합니다."
+      },
+      "presentationPromotion": {
+        "title": "발표 자료를 만들고 싶어요",
+        "description": "논문 내용을 바탕으로 슬라이드, 내레이션 스크립트, TTS 오디오, 데모 영상을 만듭니다."
       }
     }
   },

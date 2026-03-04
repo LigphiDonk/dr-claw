@@ -49,4 +49,11 @@ export const GUIDED_PROMPT_SCENARIOS: GuidedPromptScenario[] = [
     descriptionKey: 'guidedStarter.scenarios.manuscriptReview.description',
     skills: ['inno-paper-reviewer', 'inno-reference-audit', 'inno-humanizer'],
   },
+  {
+    id: 'presentation-promotion',
+    icon: '🎬',
+    titleKey: 'guidedStarter.scenarios.presentationPromotion.title',
+    descriptionKey: 'guidedStarter.scenarios.presentationPromotion.description',
+    skills: ['making-academic-presentations'],
+  },
 ];

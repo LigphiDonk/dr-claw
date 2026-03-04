@@ -296,6 +296,10 @@
       "manuscriptReview": {
         "title": "我想审阅论文稿件",
         "description": "以审稿视角检查方法、证据、引用与写作质量。"
+      },
+      "presentationPromotion": {
+        "title": "我想做 Presentation / 汇报材料",
+        "description": "基于论文内容生成演示文稿、旁白脚本、音频与演示视频。"
       }
     }
   },
