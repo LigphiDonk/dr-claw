@@ -92,7 +92,7 @@ function parseLsResultPayload(result: any): {
         path: typeof item?.path === 'string' ? item.path : '',
         isDirectory: Boolean(item?.isDirectory)
       }))
-      .filter((item) => item.path);
+      .filter((item: { name: string; path: string; isDirectory: boolean }) => item.path);
   }
 
   if (items.length === 0 && files.length > 0) {
