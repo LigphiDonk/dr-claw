@@ -12,6 +12,7 @@ const TEMPLATES = [
   { src: 'CLAUDE.md', dest: 'CLAUDE.md' },
   { src: 'cursor-project.md', dest: path.join('.cursor', 'rules', 'project.md') },
   { src: 'AGENTS.md', dest: 'AGENTS.md' },
+  { src: 'GEMINI.md', dest: 'GEMINI.md' },
 ];
 
 /**

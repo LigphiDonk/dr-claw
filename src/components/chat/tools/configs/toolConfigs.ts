@@ -592,6 +592,59 @@ export const TOOL_CONFIGS: Record<string, ToolDisplayConfig> = {
   }
 };
 
+// Gemini CLI native tool names -> existing display configs
+const GEMINI_TOOL_ALIASES: Record<string, string> = {
+  run_shell_command: 'Bash',
+  read_file: 'Read',
+  read_many_files: 'Read',
+  write_file: 'Write',
+  replace: 'Edit',
+  glob: 'Glob',
+  grep_search: 'Grep',
+  list_directory: 'LS',
+  write_todos: 'TodoWrite',
+  ask_user: 'AskUserQuestion',
+  enter_plan_mode: 'exit_plan_mode',
+  google_web_search: 'WebSearch',
+  web_fetch: 'WebFetch',
+  complete_task: 'Default',
+  activate_skill: 'Default',
+  save_memory: 'Default',
+  get_internal_docs: 'Default'
+};
+
+for (const [alias, target] of Object.entries(GEMINI_TOOL_ALIASES)) {
+  if (!TOOL_CONFIGS[alias] && TOOL_CONFIGS[target]) {
+    TOOL_CONFIGS[alias] = TOOL_CONFIGS[target];
+  }
+}
+
+if (!TOOL_CONFIGS.LS) {
+  TOOL_CONFIGS.LS = {
+    input: {
+      type: 'one-line',
+      label: 'LS',
+      getValue: (input) => input.dir_path || input.path || '.',
+      action: 'none',
+      colorScheme: {
+        primary: 'text-gray-700 dark:text-gray-300',
+        border: 'border-gray-300 dark:border-gray-600',
+        icon: 'text-gray-500 dark:text-gray-400'
+      }
+    },
+    result: {
+      type: 'collapsible',
+      defaultOpen: false,
+      title: 'Directory listing',
+      contentType: 'text',
+      getContentProps: (result) => ({
+        content: String(result?.content || ''),
+        format: 'plain'
+      })
+    }
+  };
+}
+
 /**
  * Get configuration for a tool, with fallback to default
  */

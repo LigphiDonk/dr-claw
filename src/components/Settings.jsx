@@ -27,6 +27,10 @@ function Settings({ isOpen, onClose, projects = [], initialTab = 'agents' }) {
   const [disallowedTools, setDisallowedTools] = useState([]);
   const [newAllowedTool, setNewAllowedTool] = useState('');
   const [newDisallowedTool, setNewDisallowedTool] = useState('');
+  const [geminiAllowedTools, setGeminiAllowedTools] = useState([]);
+  const [geminiDisallowedTools, setGeminiDisallowedTools] = useState([]);
+  const [newGeminiAllowedTool, setNewGeminiAllowedTool] = useState('');
+  const [newGeminiDisallowedTool, setNewGeminiDisallowedTool] = useState('');
   const [skipPermissions, setSkipPermissions] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
@@ -603,8 +607,12 @@ function Settings({ isOpen, onClose, projects = [], initialTab = 'agents' }) {
       if (savedGeminiSettings) {
         const geminiSettings = JSON.parse(savedGeminiSettings);
         setGeminiPermissionMode(geminiSettings.permissionMode || 'default');
+        setGeminiAllowedTools(geminiSettings.allowedTools || []);
+        setGeminiDisallowedTools(geminiSettings.disallowedTools || []);
       } else {
         setGeminiPermissionMode('default');
+        setGeminiAllowedTools([]);
+        setGeminiDisallowedTools([]);
       }
 
       // Load workspace root setting
@@ -831,6 +839,8 @@ function Settings({ isOpen, onClose, projects = [], initialTab = 'agents' }) {
       // Save Gemini settings
       const geminiSettings = {
         permissionMode: geminiPermissionMode,
+        allowedTools: geminiAllowedTools,
+        disallowedTools: geminiDisallowedTools,
         lastUpdated: new Date().toISOString()
       };
 
@@ -1614,6 +1624,14 @@ function Settings({ isOpen, onClose, projects = [], initialTab = 'agents' }) {
                         agent="gemini"
                         permissionMode={geminiPermissionMode}
                         setPermissionMode={setGeminiPermissionMode}
+                        allowedTools={geminiAllowedTools}
+                        setAllowedTools={setGeminiAllowedTools}
+                        disallowedTools={geminiDisallowedTools}
+                        setDisallowedTools={setGeminiDisallowedTools}
+                        newAllowedTool={newGeminiAllowedTool}
+                        setNewAllowedTool={setNewGeminiAllowedTool}
+                        newDisallowedTool={newGeminiDisallowedTool}
+                        setNewDisallowedTool={setNewGeminiDisallowedTool}
                       />
                     )}
 

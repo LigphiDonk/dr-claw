@@ -763,10 +763,25 @@ app.get('/api/projects/:projectName/file', authenticateToken, async (req, res) =
             return res.status(404).json({ error: 'Project not found' });
         }
 
-        // Handle both absolute and relative paths
-        const resolved = path.isAbsolute(filePath)
-            ? path.resolve(filePath)
-            : path.resolve(projectRoot, filePath);
+        const resolveWithPipelineFallback = (inputPath) => {
+            if (!inputPath || typeof inputPath !== 'string') return path.resolve(projectRoot, '');
+            if (path.isAbsolute(inputPath)) return path.resolve(inputPath);
+
+            const direct = path.resolve(projectRoot, inputPath);
+            const isSimpleName = !inputPath.includes('/') && !inputPath.includes('\\');
+            if (!isSimpleName) return direct;
+
+            const fallbackMap = {
+                'research_brief.json': '.pipeline/docs/research_brief.json',
+                'tasks.json': '.pipeline/tasks/tasks.json',
+                'pipeline_config.json': '.pipeline/config.json'
+            };
+            const mapped = fallbackMap[inputPath];
+            return mapped ? path.resolve(projectRoot, mapped) : direct;
+        };
+
+        // Handle both absolute and relative paths with pipeline file fallback
+        const resolved = resolveWithPipelineFallback(filePath);
         const normalizedRoot = path.resolve(projectRoot) + path.sep;
         if (!resolved.startsWith(normalizedRoot)) {
             return res.status(403).json({ error: 'Path must be under project root' });
@@ -862,10 +877,25 @@ app.put('/api/projects/:projectName/file', authenticateToken, async (req, res) =
             return res.status(404).json({ error: 'Project not found' });
         }
 
-        // Handle both absolute and relative paths
-        const resolved = path.isAbsolute(filePath)
-            ? path.resolve(filePath)
-            : path.resolve(projectRoot, filePath);
+        const resolveWithPipelineFallback = (inputPath) => {
+            if (!inputPath || typeof inputPath !== 'string') return path.resolve(projectRoot, '');
+            if (path.isAbsolute(inputPath)) return path.resolve(inputPath);
+
+            const direct = path.resolve(projectRoot, inputPath);
+            const isSimpleName = !inputPath.includes('/') && !inputPath.includes('\\');
+            if (!isSimpleName) return direct;
+
+            const fallbackMap = {
+                'research_brief.json': '.pipeline/docs/research_brief.json',
+                'tasks.json': '.pipeline/tasks/tasks.json',
+                'pipeline_config.json': '.pipeline/config.json'
+            };
+            const mapped = fallbackMap[inputPath];
+            return mapped ? path.resolve(projectRoot, mapped) : direct;
+        };
+
+        // Handle both absolute and relative paths with pipeline file fallback
+        const resolved = resolveWithPipelineFallback(filePath);
         const normalizedRoot = path.resolve(projectRoot) + path.sep;
         if (!resolved.startsWith(normalizedRoot)) {
             return res.status(403).json({ error: 'Path must be under project root' });

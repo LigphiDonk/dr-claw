@@ -31,14 +31,14 @@ interface ToolRendererProps {
 }
 
 function getToolCategory(toolName: string): string {
-  if (['Edit', 'Write', 'ApplyPatch'].includes(toolName)) return 'edit';
-  if (['Grep', 'Glob'].includes(toolName)) return 'search';
-  if (toolName === 'Bash') return 'bash';
-  if (['TodoWrite', 'TodoRead'].includes(toolName)) return 'todo';
+  if (['Edit', 'Write', 'ApplyPatch', 'replace', 'write_file'].includes(toolName)) return 'edit';
+  if (['Grep', 'Glob', 'grep_search', 'glob'].includes(toolName)) return 'search';
+  if (['Bash', 'run_shell_command'].includes(toolName)) return 'bash';
+  if (['TodoWrite', 'TodoRead', 'write_todos'].includes(toolName)) return 'todo';
   if (['TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet'].includes(toolName)) return 'task';
   if (toolName === 'Task') return 'agent';  // Subagent task
-  if (toolName === 'exit_plan_mode' || toolName === 'ExitPlanMode') return 'plan';
-  if (toolName === 'AskUserQuestion') return 'question';
+  if (toolName === 'exit_plan_mode' || toolName === 'ExitPlanMode' || toolName === 'enter_plan_mode') return 'plan';
+  if (toolName === 'AskUserQuestion' || toolName === 'ask_user') return 'question';
   return 'default';
 }
 
