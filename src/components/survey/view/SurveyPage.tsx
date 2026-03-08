@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -381,6 +381,8 @@ export default function SurveyPage({ selectedProject }: SurveyPageProps) {
     graphs: false,
     notes: false,
   });
+  const previewPaneRef = useRef<HTMLDivElement | null>(null);
+  const pendingPreviewScrollRef = useRef(false);
 
   const togglePanel = (panel: keyof typeof collapsedPanels) => {
     setCollapsedPanels((current) => ({ ...current, [panel]: !current[panel] }));
@@ -388,6 +390,16 @@ export default function SurveyPage({ selectedProject }: SurveyPageProps) {
 
   const toggleSection = (section: keyof typeof collapsedSections) => {
     setCollapsedSections((current) => ({ ...current, [section]: !current[section] }));
+  };
+
+  const handleSelectItem = (item: SelectedItem) => {
+    pendingPreviewScrollRef.current = Boolean(item);
+    setCollapsedPanels((current) => (
+      current.preview
+        ? { ...current, preview: false }
+        : current
+    ));
+    setSelectedItem(item);
   };
 
   const handleOpenMermaidWindow = () => {
@@ -517,6 +529,22 @@ export default function SurveyPage({ selectedProject }: SurveyPageProps) {
     };
   }, [selectedItem, selectedProject.name]);
 
+  useEffect(() => {
+    if (!selectedItem || !pendingPreviewScrollRef.current) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      previewPaneRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+      pendingPreviewScrollRef.current = false;
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [selectedItem]);
+
   const sections = [
     { key: 'papers', title: t('surveyPage.sections.papers'), files: papers },
     { key: 'reports', title: t('surveyPage.sections.reports'), files: reports },
@@ -595,7 +623,7 @@ export default function SurveyPage({ selectedProject }: SurveyPageProps) {
                           <button
                             key={task.id}
                             type="button"
-                            onClick={() => setSelectedItem({ type: 'task', value: task })}
+                            onClick={() => handleSelectItem({ type: 'task', value: task })}
                             className={cn(
                               'mb-2 w-full rounded-xl border px-3 py-3 text-left transition-all last:mb-0',
                               isSelected
@@ -632,7 +660,7 @@ export default function SurveyPage({ selectedProject }: SurveyPageProps) {
                         title={section.title}
                         files={section.files}
                         selectedItem={selectedItem}
-                        onSelect={setSelectedItem}
+                        onSelect={handleSelectItem}
                         emptyLabel={t('surveyPage.empty.noSectionFiles', { section: section.title.toLowerCase() })}
                         filter={filter}
                         collapsed={collapsedSections[section.key]}
@@ -648,7 +676,7 @@ export default function SurveyPage({ selectedProject }: SurveyPageProps) {
                 </CollapsiblePanel>
               </div>
 
-              <div>
+              <div ref={previewPaneRef}>
                 <PreviewPane
                   selectedItem={selectedItem}
                   preview={preview}

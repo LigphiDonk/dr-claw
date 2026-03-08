@@ -9,13 +9,13 @@ import {
   GitBranch, FolderOpen, ChevronDown, ChevronRight, ExternalLink,
   FileCode, Beaker, Brain, Save, AlertCircle,
   Sparkles, Copy, Check, PenTool, Target, Clock3, ListChecks, MessageSquare,
-  Plus, Trash2, AlertTriangle, Maximize2
+  Plus, Trash2, AlertTriangle, Maximize2, X
 } from 'lucide-react';
 import ReactDOM from 'react-dom';
 import { ScrollArea } from './ui/scroll-area';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import { api } from '../utils/api';
+import useLocalStorage from '../hooks/useLocalStorage';
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -210,6 +210,7 @@ const EXPERIMENT_STAGES = new Set([
 const PUBLICATION_STAGES = new Set(['Paper Writing']);
 const PRESENTATION_STAGES = new Set(['Homepage Delivery', 'Slide Generation', 'TTS Audio', 'Video Assembly']);
 const DEFAULT_RESEARCH_BRIEF_FILENAME = 'research_brief.json';
+const DEFAULT_RESEARCH_BRIEF_PATH = '.pipeline/docs/research_brief.json';
 const DEFAULT_TASKS_FILENAME = 'tasks.json';
 const TASK_STAGE_ORDER = ['survey', 'ideation', 'experiment', 'publication', 'promotion', 'unassigned'];
 const TASK_STAGE_META = {
@@ -251,6 +252,85 @@ const ARTIFACT_STAGE_ORDER = [
 ];
 
 const PIPELINE_STAGE_KEYS = TASK_STAGE_ORDER.filter((stage) => stage !== 'unassigned');
+
+const OVERVIEW_MARKDOWN_COMPONENTS = {
+  p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+  ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-2" {...props} />,
+  ol: ({node, ...props}) => <ol className="list-decimal pl-4 mb-2" {...props} />,
+  li: ({node, ...props}) => <li className="mb-0.5" {...props} />,
+  code: ({node, inline, className, children, ...props}) => {
+    return inline ? (
+      <code className="bg-muted px-1 py-0.5 rounded text-xs font-mono" {...props}>
+        {children}
+      </code>
+    ) : (
+      <code className="block bg-muted p-2 rounded text-xs font-mono whitespace-pre-wrap my-2" {...props}>
+        {children}
+      </code>
+    );
+  }
+};
+
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function normalizeString(value) {
+  return isNonEmptyString(value) ? value.trim() : '';
+}
+
+function normalizeStringList(values) {
+  if (!Array.isArray(values)) return [];
+  return values
+    .filter((value) => isNonEmptyString(value))
+    .map((value) => value.trim());
+}
+
+function toMarkdownList(values) {
+  return normalizeStringList(values)
+    .map((value) => `- ${value}`)
+    .join('\n');
+}
+
+function formatStageLabel(stage) {
+  const normalized = normalizeString(stage);
+  if (!normalized) return '';
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function buildOverviewSections(researchBrief, instance) {
+  const overviewSections = [];
+  const briefSections = researchBrief?.sections || {};
+
+  const appendSection = (label, value) => {
+    if (Array.isArray(value)) {
+      const content = toMarkdownList(value);
+      if (content) overviewSections.push({ label, content });
+      return;
+    }
+
+    const content = normalizeString(value);
+    if (content) overviewSections.push({ label, content });
+  };
+
+  appendSection('Research Goal', briefSections.ideation?.research_goal);
+  appendSection('Problem Framing', briefSections.ideation?.problem_framing);
+  appendSection('Survey Summary', briefSections.survey?.synthesis_summary);
+  appendSection('Open Gaps', briefSections.survey?.open_gaps);
+  appendSection('Evidence Plan', briefSections.ideation?.evidence_plan);
+  appendSection('Success Criteria', briefSections.ideation?.success_criteria);
+  appendSection('Hypothesis / Validation Goal', briefSections.experiment?.hypothesis_or_validation_goal);
+  appendSection('Method / Protocol', briefSections.experiment?.method_or_protocol);
+  appendSection('Evaluation Plan', briefSections.experiment?.evaluation_plan);
+  appendSection('Paper Outline', briefSections.publication?.paper_outline);
+  appendSection('Figures / Tables Plan', briefSections.publication?.figures_tables_plan);
+  appendSection('Artifact Plan', briefSections.publication?.artifact_plan);
+
+  if (overviewSections.length > 0) return overviewSections;
+
+  const legacyTask = normalizeString(instance?.task2 || instance?.task1 || instance?.ideas);
+  return legacyTask ? [{ label: 'Task Description', content: legacyTask, isLegacy: true }] : [];
+}
 
 function normalizeTask(task) {
   return {
@@ -326,12 +406,16 @@ function getNextTask(tasks) {
     ?? null;
 }
 
-function getSourcePapers(instance) {
-  if (!Array.isArray(instance?.source_papers)) {
+function getSourcePapers(instance, researchBrief) {
+  const papers = Array.isArray(instance?.source_papers) && instance.source_papers.length > 0
+    ? instance.source_papers
+    : normalizeStringList(researchBrief?.sections?.survey?.key_references);
+
+  if (!Array.isArray(papers) || papers.length === 0) {
     return [];
   }
 
-  return instance.source_papers
+  return papers
     .map((paper, index) => {
       if (typeof paper === 'string') {
         return { reference: paper, rank: index + 1 };
@@ -445,111 +529,196 @@ function getArtifactPreviewKind(file) {
 /*  Sub-components (cards)                                             */
 /* ------------------------------------------------------------------ */
 
-/** Overview card: target paper, task, mode */
-function OverviewCard({ instance, config }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const mode = config?.task_level === 'task1' ? 'Plan' : 'Idea';
-  const modeColor = mode === 'Plan'
-    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
-    : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
-  const taskText = instance?.task2 || instance?.task1 || instance?.ideas || '';
-  const shouldTruncate = taskText.length > 400;
-  const displayedText = (shouldTruncate && !isExpanded)
-    ? taskText.slice(0, 400) + '…'
-    : taskText;
+/** Overview card: title, brief summary, and instance metadata */
+function OverviewCard({ instance, config, researchBrief }) {
+  const [showOverviewModal, setShowOverviewModal] = useState(false);
+  const overviewSections = useMemo(
+    () => buildOverviewSections(researchBrief, instance),
+    [researchBrief, instance],
+  );
+  const briefMeta = researchBrief?.meta || {};
+  const overviewTitle = normalizeString(briefMeta.title);
+  const targetPaper = normalizeString(instance?.target);
+  const instanceLabel = normalizeString(instance?.instance_id || instance?.instance_path?.split('/').pop());
+  const metadata = [
+    { label: 'Start Stage', value: formatStageLabel(researchBrief?.pipeline?.startStage) },
+    { label: 'Target Venue', value: normalizeString(briefMeta.target_venue) },
+    { label: 'Lead Author', value: normalizeString(briefMeta.lead_author) },
+    { label: 'Date', value: normalizeString(briefMeta.date) },
+    { label: 'Instance', value: instanceLabel },
+    { label: 'Category', value: normalizeString(config?.category) },
+  ].filter((item) => item.value);
+  const hasDetailedContent = overviewSections.length > 0;
+  const overviewSummary = hasDetailedContent
+    ? overviewSections.length === 1
+      ? '1 research brief section available'
+      : `${overviewSections.length} research brief sections available`
+    : '';
+  const showTargetPaper = targetPaper && targetPaper !== overviewTitle;
+  const hasOverviewContent = Boolean(
+    overviewTitle
+    || showTargetPaper
+    || metadata.length > 0
+    || hasDetailedContent
+  );
 
   return (
-    <div className="rounded-[28px] border border-border/60 bg-card/78 p-5 shadow-sm backdrop-blur">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-blue-200/70 bg-blue-50/90 text-blue-700 dark:border-blue-900/70 dark:bg-blue-950/30 dark:text-blue-300">
-            <FlaskConical className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-semibold tracking-tight text-foreground">
-              Research Overview
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Brief, scope, and instance metadata for this workspace
-            </p>
+    <>
+      <div className="flex h-full flex-col gap-4 rounded-[28px] border border-border/60 bg-card/78 p-5 shadow-sm backdrop-blur">
+        <div className="flex items-start gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-blue-200/70 bg-blue-50/90 text-blue-700 dark:border-blue-900/70 dark:bg-blue-950/30 dark:text-blue-300">
+              <FlaskConical className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold tracking-tight text-foreground">
+                Research Overview
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Brief, scope, and instance metadata for this workspace
+              </p>
+            </div>
           </div>
         </div>
-        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${modeColor}`}>
-          {mode} Mode
-        </span>
-      </div>
-      {instance?.target && (
-        <div className="rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Target Paper</p>
-          <p className="mt-2 text-sm font-medium text-foreground">{instance.target}</p>
-          {instance?.url && (
-            <a href={instance.url} target="_blank" rel="noreferrer"
-              className="mt-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline dark:text-blue-400">
-              {instance.url} <ExternalLink className="w-3 h-3" />
-            </a>
-          )}
-        </div>
-      )}
-      {(instance?.instance_id ?? instance?.instance_path) && (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>Instance: <code className="bg-muted px-1 rounded">{instance.instance_id ?? instance.instance_path?.split('/').pop()}</code></span>
-          {config?.category && <span>Category: <code className="bg-muted px-1 rounded">{config.category}</code></span>}
-        </div>
-      )}
-      {taskText && (
-        <div className="rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Task Description</p>
-          <div className="text-sm text-foreground/80 leading-relaxed markdown-body">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{
-                p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-2" {...props} />,
-                ol: ({node, ...props}) => <ol className="list-decimal pl-4 mb-2" {...props} />,
-                li: ({node, ...props}) => <li className="mb-0.5" {...props} />,
-                code: ({node, inline, className, children, ...props}) => {
-                  return inline ? (
-                    <code className="bg-muted px-1 py-0.5 rounded text-xs font-mono" {...props}>
-                      {children}
-                    </code>
-                  ) : (
-                    <code className="block bg-muted p-2 rounded text-xs font-mono whitespace-pre-wrap my-2" {...props}>
-                      {children}
-                    </code>
-                  );
-                }
-              }}
-            >
-              {displayedText}
-            </ReactMarkdown>
+        {overviewTitle && (
+          <div className="rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Research Title</p>
+            <p className="mt-2 text-sm font-medium text-foreground">{overviewTitle}</p>
+            {instance?.url && !showTargetPaper ? (
+              <a href={instance.url} target="_blank" rel="noreferrer"
+                className="mt-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline dark:text-blue-400">
+                {instance.url} <ExternalLink className="w-3 h-3" />
+              </a>
+            ) : null}
           </div>
-          {shouldTruncate && (
+        )}
+        {showTargetPaper && (
+          <div className="rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Target Paper</p>
+            <p className="mt-2 text-sm font-medium text-foreground">{targetPaper}</p>
+            {instance?.url && (
+              <a href={instance.url} target="_blank" rel="noreferrer"
+                className="mt-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline dark:text-blue-400">
+                {instance.url} <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+          </div>
+        )}
+        {metadata.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {metadata.map((item) => (
+              <span key={item.label} className="rounded-full border border-border/60 bg-background/70 px-3 py-1 shadow-sm">
+                {item.label}: <code className="bg-muted px-1 rounded">{item.value}</code>
+              </span>
+            ))}
+          </div>
+        )}
+        {hasDetailedContent && (
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm">
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Research Brief</p>
+              <p className="mt-2 text-sm text-foreground/80">
+                {overviewSummary}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Hidden from the card to keep the overview compact.
+              </p>
+            </div>
             <Button
-              variant="ghost"
               size="sm"
-              className="mt-1 h-6 px-0 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-              onClick={() => setIsExpanded(!isExpanded)}
+              className="shrink-0 rounded-full"
+              onClick={() => setShowOverviewModal(true)}
             >
-              {isExpanded ? (
-                <span className="flex items-center">
-                  <ChevronDown className="w-3 h-3 mr-1" /> Show less
-                </span>
-              ) : (
-                <span className="flex items-center">
-                  <ChevronRight className="w-3 h-3 mr-1" /> Show more
-                </span>
-              )}
+              <Maximize2 className="mr-1.5 h-4 w-4" />
+              Read Brief
             </Button>
-          )}
-        </div>
+          </div>
+        )}
+        {!hasOverviewContent && (
+          <div className="rounded-2xl border border-dashed border-border/60 bg-background/60 px-4 py-5 text-sm text-muted-foreground">
+            Start the pipeline in Chat to populate the research brief, target paper, and working plan here.
+          </div>
+        )}
+      </div>
+
+      {showOverviewModal && ReactDOM.createPortal(
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm md:p-6"
+          onClick={() => setShowOverviewModal(false)}
+        >
+          <div
+            className="flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-[34px] border border-border/70 bg-background shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex flex-shrink-0 items-start justify-between gap-4 border-b border-border/60 bg-gradient-to-r from-slate-50 via-white to-cyan-50 px-5 py-4 dark:from-slate-950 dark:via-slate-900 dark:to-cyan-950/20">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-foreground">
+                  Research Overview
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {overviewTitle || targetPaper || 'Research brief'}
+                </div>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => setShowOverviewModal(false)}>
+                Close
+              </Button>
+            </div>
+            <ScrollArea className="min-h-0 flex-1">
+              <div className="space-y-4 p-5">
+                {(overviewTitle || showTargetPaper) && (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {overviewTitle ? (
+                      <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Research Title</p>
+                        <p className="mt-2 text-sm font-medium text-foreground">{overviewTitle}</p>
+                      </div>
+                    ) : null}
+                    {showTargetPaper ? (
+                      <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Target Paper</p>
+                        <p className="mt-2 text-sm font-medium text-foreground">{targetPaper}</p>
+                        {instance?.url ? (
+                          <a href={instance.url} target="_blank" rel="noreferrer"
+                            className="mt-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline dark:text-blue-400">
+                            {instance.url} <ExternalLink className="w-3 h-3" />
+                          </a>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+                {metadata.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    {metadata.map((item) => (
+                      <span key={item.label} className="rounded-full border border-border/60 bg-card/70 px-3 py-1 shadow-sm">
+                        {item.label}: <code className="bg-muted px-1 rounded">{item.value}</code>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="grid gap-3 md:grid-cols-2">
+                  {overviewSections.map((section) => (
+                    <div key={section.label} className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm">
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{section.label}</p>
+                      <div className="mt-2 text-sm text-foreground/80 leading-relaxed markdown-body">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkMath]}
+                          rehypePlugins={[rehypeKatex]}
+                          components={OVERVIEW_MARKDOWN_COMPONENTS}
+                        >
+                          {section.content}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </ScrollArea>
+          </div>
+        </div>,
+        document.body,
       )}
-      {!instance?.target && !taskText && (
-        <div className="rounded-2xl border border-dashed border-border/60 bg-background/60 px-4 py-5 text-sm text-muted-foreground">
-          Start the pipeline in Chat to populate the research brief, target paper, and working plan here.
-        </div>
-      )}
-    </div>
+    </>
   );
 }
 
@@ -560,7 +729,7 @@ function PapersCard({ papers }) {
   const shown = expanded ? papers : papers.slice(0, 5);
 
   return (
-    <div className="rounded-[28px] border border-border/60 bg-card/78 p-5 shadow-sm backdrop-blur">
+    <div className="flex h-full flex-col rounded-[28px] border border-border/60 bg-card/78 p-5 shadow-sm backdrop-blur">
       <div className="flex items-center gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-200/70 bg-emerald-50/90 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-300">
           <BookOpen className="w-5 h-5" />
@@ -574,7 +743,7 @@ function PapersCard({ papers }) {
           </p>
         </div>
       </div>
-      <ul className="space-y-1.5">
+      <ul className="mt-4 flex-1 space-y-1.5">
         {shown.map((p, i) => (
           <li key={i} className="flex items-start gap-3 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-sm shadow-sm">
             <span className="mt-0.5 w-6 flex-shrink-0 text-right text-xs text-muted-foreground">{p.rank || i + 1}.</span>
@@ -606,7 +775,7 @@ function PapersCard({ papers }) {
       </ul>
       {papers.length > 5 && (
         <button onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1 text-xs text-blue-600 hover:underline dark:text-blue-400">
+          className="mt-3 flex items-center gap-1 text-xs text-blue-600 hover:underline dark:text-blue-400">
           {expanded ? 'Show less' : `Show all ${papers.length} papers`}
           <ChevronDown className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </button>
@@ -1902,23 +2071,61 @@ function ArtifactPreviewEmptyState({ hasArtifacts }) {
   );
 }
 
-function UsageGuideNotice({ t, onNavigateToChat }) {
+function UsageGuideNotice({
+  t,
+  onNavigateToChat,
+  collapsed,
+  onToggleCollapsed,
+  onDismiss,
+}) {
   const guideSteps = ['step1', 'step2', 'step3', 'step4', 'step5'];
 
   return (
     <div className="relative overflow-hidden rounded-[28px] border border-sky-200/70 bg-[radial-gradient(circle_at_top_left,rgba(125,211,252,0.24),transparent_38%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(239,246,255,0.94))] p-5 shadow-sm dark:border-sky-900/70 dark:bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_38%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,6,23,0.94))]">
       <div className="absolute -right-10 -top-8 h-28 w-28 rounded-full bg-sky-200/40 blur-3xl dark:bg-sky-500/10" />
-      <div className="flex items-start gap-3">
-        <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-sky-200/80 bg-white/80 text-sky-700 shadow-sm dark:border-sky-900/70 dark:bg-slate-950/50 dark:text-sky-300">
-          <AlertCircle className="w-5 h-5" />
+      <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-sky-200/80 bg-white/80 text-sky-700 shadow-sm dark:border-sky-900/70 dark:bg-slate-950/50 dark:text-sky-300">
+            <AlertCircle className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold tracking-tight text-slate-900 dark:text-sky-100">
+              {t('researchLabGuide.title')}
+            </h3>
+            {!collapsed ? (
+              <p className="mt-1 text-sm leading-6 text-slate-700 dark:text-sky-100/85">
+                {t('researchLabGuide.description')}
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-slate-600 dark:text-sky-100/70">
+                Guide hidden. Expand to view setup steps.
+              </p>
+            )}
+          </div>
         </div>
-        <div className="relative space-y-3">
-          <h3 className="text-base font-semibold tracking-tight text-slate-900 dark:text-sky-100">
-            {t('researchLabGuide.title')}
-          </h3>
-          <p className="text-sm leading-6 text-slate-700 dark:text-sky-100/85">
-            {t('researchLabGuide.description')}
-          </p>
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 rounded-full text-slate-700 hover:text-slate-900 dark:text-sky-100/80 dark:hover:text-sky-100"
+            onClick={onToggleCollapsed}
+          >
+            {collapsed ? <ChevronRight className="mr-1.5 h-4 w-4" /> : <ChevronDown className="mr-1.5 h-4 w-4" />}
+            {collapsed ? 'Expand' : 'Collapse'}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 rounded-full text-slate-700 hover:text-slate-900 dark:text-sky-100/80 dark:hover:text-sky-100"
+            onClick={onDismiss}
+          >
+            <X className="mr-1.5 h-4 w-4" />
+            Remove forever
+          </Button>
+        </div>
+      </div>
+      {!collapsed ? (
+        <div className="relative mt-4 space-y-3 pl-14">
           <ol className="list-decimal pl-4 space-y-1.5 text-sm text-slate-700 dark:text-sky-100/85">
             {guideSteps.map((key) => (
               <li key={key}>{t(`researchLabGuide.${key}`)}</li>
@@ -1938,7 +2145,7 @@ function UsageGuideNotice({ t, onNavigateToChat }) {
             </Button>
           )}
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
@@ -1951,12 +2158,15 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
   const { t } = useTranslation('common');
   const [loading, setLoading] = useState(false);
   const [instance, setInstance] = useState(null);
+  const [researchBrief, setResearchBrief] = useState(null);
   const [config, setConfig] = useState(null);
   const [artifacts, setArtifacts] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [projectFileSet, setProjectFileSet] = useState(null);
   const [selectedFile, setSelectedFileRaw] = useState(null);
+  const [guideCollapsed, setGuideCollapsed] = useLocalStorage('research-lab-guide-collapsed', false);
+  const [guideDismissed, setGuideDismissed] = useLocalStorage('research-lab-guide-dismissed', false);
   const HIDDEN_FILENAMES = useMemo(() => new Set([DEFAULT_RESEARCH_BRIEF_FILENAME, DEFAULT_TASKS_FILENAME]), []);
   const setSelectedFile = useCallback((file) => {
     if (file && HIDDEN_FILENAMES.has(file.name)) return;
@@ -1974,6 +2184,7 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
   const loadData = useCallback(async () => {
     if (!projectName) {
       setInstance(null);
+      setResearchBrief(null);
       setConfig(null);
       setArtifacts([]);
       setTasks([]);
@@ -1983,6 +2194,7 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
     setLoading(true);
     setTasksLoading(true);
     setInstance(null);
+    setResearchBrief(null);
     setConfig(null);
     try {
       const [tasksResponse, filesResponse] = await Promise.all([
@@ -2007,12 +2219,15 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
       // Optional compatibility: read legacy metadata files only when they exist.
       const hasInstanceFile = fileSet.has('instance.json');
       const hasPipelineConfig = fileSet.has('pipeline_config.json');
+      const hasResearchBrief = fileSet.has(DEFAULT_RESEARCH_BRIEF_PATH);
 
-      if (hasInstanceFile || hasPipelineConfig) {
-        const [inst, pipelineConfig] = await Promise.all([
+      if (hasInstanceFile || hasPipelineConfig || hasResearchBrief) {
+        const [inst, pipelineConfig, brief] = await Promise.all([
           hasInstanceFile ? readProjectJson(projectName, 'instance.json') : Promise.resolve(null),
           hasPipelineConfig ? readProjectJson(projectName, 'pipeline_config.json') : Promise.resolve(null),
+          hasResearchBrief ? readProjectJson(projectName, DEFAULT_RESEARCH_BRIEF_PATH) : Promise.resolve(null),
         ]);
+        setResearchBrief(brief);
 
         // Prefer instance.json; merge in pipeline_config for old projects or missing keys
         const merged = inst
@@ -2095,11 +2310,23 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
     [normalizedTasks, artifacts],
   );
   const nextTask = useMemo(() => getNextTask(normalizedTasks), [normalizedTasks]);
-  const sourcePapers = useMemo(() => getSourcePapers(instance), [instance]);
+  const sourcePapers = useMemo(
+    () => getSourcePapers(instance, researchBrief),
+    [instance, researchBrief],
+  );
+  const sourcePaperOrigin = useMemo(() => {
+    if (Array.isArray(instance?.source_papers) && instance.source_papers.length > 0) {
+      return 'instance';
+    }
+    if (Array.isArray(researchBrief?.sections?.survey?.key_references) && researchBrief.sections.survey.key_references.length > 0) {
+      return 'brief';
+    }
+    return null;
+  }, [instance, researchBrief]);
   const projectTitle = selectedProject?.displayName || selectedProject?.name || 'Research Project';
   const liveStageCount = pipelineStageOverview.filter((stage) => stage.total > 0 || stage.artifacts > 0).length;
   const hasPaperPreview = projectFileSet?.has('Publication/paper/main.pdf');
-  const hasContent = instance || config || artifacts.length > 0 || tasks.length > 0;
+  const hasContent = instance || researchBrief || config || artifacts.length > 0 || tasks.length > 0;
   const sidebar = (
     <div className="space-y-4">
       <ArtifactsCard
@@ -2143,11 +2370,6 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
               {projectTitle}
             </div>
           </div>
-          {config?.task_level && (
-            <Badge variant="outline" className="hidden text-xs sm:inline-flex">
-              {config.task_level === 'task1' ? 'Plan' : 'Idea'}
-            </Badge>
-          )}
         </div>
         <div className="flex items-center gap-2">
           {nextTask && onNavigateToChat && (
@@ -2168,6 +2390,18 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
 
       <ScrollArea className="flex-1">
         <div className="mx-auto max-w-[1480px] p-4 sm:p-6">
+          {!guideDismissed ? (
+            <div className="mb-6">
+              <UsageGuideNotice
+                t={t}
+                onNavigateToChat={onNavigateToChat}
+                collapsed={guideCollapsed}
+                onToggleCollapsed={() => setGuideCollapsed((value) => !value)}
+                onDismiss={() => setGuideDismissed(true)}
+              />
+            </div>
+          ) : null}
+
           <section className="relative overflow-hidden rounded-[36px] border border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(125,211,252,0.28),transparent_34%),linear-gradient(135deg,rgba(248,250,252,0.96),rgba(240,249,255,0.90))] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] dark:bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_34%),linear-gradient(135deg,rgba(2,6,23,0.96),rgba(15,23,42,0.92))] dark:shadow-[0_28px_70px_rgba(2,6,23,0.45)] sm:p-7">
             <div className="absolute -right-10 -top-10 h-44 w-44 rounded-full bg-sky-200/50 blur-3xl dark:bg-sky-500/15" />
             <div className="absolute bottom-0 right-24 h-28 w-28 rounded-full bg-emerald-200/40 blur-2xl dark:bg-emerald-500/10" />
@@ -2210,7 +2444,13 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
                     icon={BookOpen}
                     label="Sources"
                     value={sourcePapers.length}
-                    detail={sourcePapers.length > 0 ? 'Loaded from instance metadata' : 'No papers attached yet'}
+                    detail={
+                      sourcePapers.length > 0
+                        ? sourcePaperOrigin === 'brief'
+                          ? 'Loaded from research brief'
+                          : 'Loaded from instance metadata'
+                        : 'No papers attached yet'
+                    }
                     accentClass="border-amber-200/80 bg-amber-100/80 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200"
                   />
                 </div>
@@ -2270,12 +2510,10 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
 
           <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1.05fr)_420px]">
             <div className="min-w-0 space-y-6">
-              <div className="grid gap-6 lg:grid-cols-2">
-                <OverviewCard instance={instance} config={config} />
-                <UsageGuideNotice t={t} onNavigateToChat={onNavigateToChat} />
+              <div className={`grid items-stretch gap-6 ${sourcePapers.length > 0 ? 'lg:grid-cols-2' : ''}`}>
+                <OverviewCard instance={instance} config={config} researchBrief={researchBrief} />
+                {sourcePapers.length > 0 ? <PapersCard papers={sourcePapers} /> : null}
               </div>
-
-              {sourcePapers.length > 0 ? <PapersCard papers={sourcePapers} /> : null}
 
               <div className="xl:hidden">
                 {sidebar}
