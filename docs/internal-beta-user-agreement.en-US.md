@@ -5,8 +5,8 @@
 ## 0. Agreement Information
 
 1. Agreement name: Vibe Lab Beta User Confirmation Agreement (Beta).
-2. Current version: `v0.1`.
-3. Effective date: `2026-02-24`.
+2. Current version: `v0.2`.
+3. Effective date: `2026-03-13`.
 4. Publisher (Platform): `Vibe Lab Development Team`.
 5. Contact: `dingjiesong.cs@gmail.com`.
 
@@ -47,6 +47,7 @@ During the beta, you understand and agree that:
 2. When discovering issues, you will provide reproducible feedback as far as reasonably possible (including observed behavior, steps, timestamps, and environment) to facilitate diagnosis and fixes.
 3. Where feasible, you will cooperate with necessary surveys or follow‑ups to help improve product experience and stability.
 4. You will not use the platform to perform unauthorized access, malicious scanning, distribution of malicious code, interference with system stability, or similar behavior.
+5. Without the platform’s prior written consent, you may not conduct any secondary development, repackaging, plugin-style integration, mirrored deployment, feature decomposition, API cloning, workflow reuse, or any other derivative development based on Vibe Lab or any part of it, nor may you use it to develop, train, support, or optimize any product or service that is identical, similar, or competitive with Vibe Lab.
 
 ## 6. Data Processing and Privacy
 
@@ -93,6 +94,9 @@ To improve Vibe Lab’s model performance and product capabilities, you may choo
 1. Information related to the Vibe Lab beta (including but not limited to unreleased feature details, performance metrics, defect information, and roadmaps) is by default treated as confidential information.
 2. Without the platform’s prior written consent, you must not publicly disclose such unreleased information or use it for purposes beyond those defined in this Agreement.
 3. You undertake to comply with applicable laws, regulations, and regulatory requirements when using Vibe Lab, and you must not use the platform to engage in illegal, infringing, fraudulent, or otherwise improper activities. If you violate the above obligations, you will bear all resulting responsibilities and consequences.
+4. Without the platform’s prior written consent, you may not reverse engineer, decompile, disassemble, scrape, export, organize, reuse, imitate, or use for training, fine-tuning, or evaluating any other model or system any part of the platform software, model integration methods, agent configurations, system prompts, workflow orchestration, interface designs, interaction logic, API protocols, outputs, or related documentation.
+5. You may not use any functional observations, test conclusions, output samples, prompt structures, operational paths, or other know-how obtained through Vibe Lab to build, validate, market, sell, or operate any secondary-development product, substitute product, or competitive solution.
+6. Without the platform’s prior written consent, you may not publish any benchmark, comparative evaluation, teardown analysis, or capability conclusions regarding Vibe Lab.
 
 ## 9. AI Output and Professional Risk Notice
 
@@ -106,6 +110,8 @@ To improve Vibe Lab’s model performance and product capabilities, you may choo
 2. Ownership of your original content, data, and materials submitted to the platform does not automatically transfer as a result of using the platform.
 3. In order to provide, maintain, and improve the beta service, and within the scope of this Agreement and your configuration choices, you grant the platform a non‑exclusive, revocable (for future processing), and reasonably necessary license to use such content and data.
 4. Feedback you submit (such as bug reports and improvement suggestions) may be used by the platform for product improvement without additional payment.
+5. Except for the beta access rights expressly granted under this Agreement, the platform grants you no intellectual property license of any kind. In particular, the platform does not authorize you to conduct any secondary development, derivative development, sublicensing, resale, commercial exploitation, or external provision of Vibe Lab as part of any other product or service.
+6. You agree that any unauthorized secondary development, derivative works, interface adaptation layers, automated wrappers, mirror services, training materials, commercial proposals, or other reuse results based on Vibe Lab may not be asserted against the platform, and the platform may require you to immediately cease use, delete, take down, and implement remedial measures.
 
 ## 11. Publications and Acknowledgments (Beta Period)
 
@@ -123,7 +129,7 @@ To improve Vibe Lab’s model performance and product capabilities, you may choo
 ## 12. Exit, Suspension, and Termination
 
 1. You may request to exit the beta at any time. After exiting, you may no longer be able to use some or all beta features.
-2. If you violate this Agreement, pose security risks, or engage in abusive behavior, the platform may restrict, suspend, or terminate your beta access within a necessary scope.
+2. If you violate this Agreement, pose security risks, engage in abusive behavior, or are suspected of prohibited conduct such as secondary development, competitive use, or reverse analysis, the platform may immediately restrict, suspend, or terminate your beta access within a necessary scope and may refuse any future application from you.
 3. After exit or termination, provisions relating to compliance, audit, dispute resolution, security, and limitation of liability shall remain in effect to the extent necessary.
 
 ## 13. Limitation of Liability
