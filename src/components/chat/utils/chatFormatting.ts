@@ -127,6 +127,9 @@ export function formatUsageLimitText(text: string) {
     // First apply file tree formatting
     let formattedText = formatFileTreeInContent(text);
 
+    // Strip <thinking>...</thinking> blocks that appear inline in assistant messages
+    formattedText = formattedText.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, '');
+
     return formattedText.replace(/Claude AI usage limit reached\|(\d{10,13})/g, (match, ts) => {
       let timestampMs = parseInt(ts, 10);
       if (!Number.isFinite(timestampMs)) return match;
