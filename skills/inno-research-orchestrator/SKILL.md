@@ -14,7 +14,7 @@ The user's entry point to the InnoFlow Research pipeline. Real users rarely prov
 
 ## Constraints
 
-- **Sandbox rule**: The agent must **only** read, write, and create files inside the current project directory (`<project_path>`). Never access, reference, or modify files outside this directory. Path values in `instance.json` are **absolute** when the project is created by Vibe Lab; use them as-is for file I/O. If an instance uses relative paths (e.g. hand-edited), resolve with `path.join(project_path, value)`. All generated paths (e.g. `instance`, `Ideation.references`, `Ideation.ideas`, `Experiment.code_references`, `Experiment.datasets`, `Experiment.core_code`, `Experiment.analysis`, `Publication.paper`, symlinks, dataset copies, etc.) must be children of `<project_path>`. If the user mentions an external path (e.g. a dataset), copy or symlink it **into** the project directory rather than operating on it in-place.
+- **Sandbox rule**: The agent must **only** read, write, and create files inside the current project directory (`<project_path>`). Never access, reference, or modify files outside this directory. Path values in `instance.json` are **absolute** when the project is created by Dr. Claw; use them as-is for file I/O. If an instance uses relative paths (e.g. hand-edited), resolve with `path.join(project_path, value)`. All generated paths (e.g. `instance`, `Ideation.references`, `Ideation.ideas`, `Experiment.code_references`, `Experiment.datasets`, `Experiment.core_code`, `Experiment.analysis`, `Publication.paper`, symlinks, dataset copies, etc.) must be children of `<project_path>`. If the user mentions an external path (e.g. a dataset), copy or symlink it **into** the project directory rather than operating on it in-place.
 
 ---
 
@@ -33,7 +33,7 @@ Users may provide input in **any** of the forms below. Gather as much as possibl
 
 **If critical information is missing, ask the user.** Minimum required:
 - Some form of task description (topic, background, or problem statement)
-- The user's project working directory (or use the current VibeLab project path)
+- The user's project working directory (or use the current Dr. Claw project path)
 
 ---
 
@@ -52,19 +52,19 @@ Based on what the user provided, classify into **plan-level** or **idea-level**:
 
 ## Step 3 — Construct standardized inputs for inno-prepare-resources
 
-`inno-prepare-resources` expects paths and fields from **`instance.json`**. When the project is created by Vibe Lab, `instance` and `Ideation.*` / `Experiment.*` / `Publication.*` are **absolute** paths; use as-is. If relative (e.g. hand-edited instance), resolve with `path.join(project_path, value)`.
+`inno-prepare-resources` expects paths and fields from **`instance.json`**. When the project is created by Dr. Claw, `instance` and `Ideation.*` / `Experiment.*` / `Publication.*` are **absolute** paths; use as-is. If relative (e.g. hand-edited instance), resolve with `path.join(project_path, value)`.
 
 ```
-instance            : str   — path to instance file (absolute in Vibe Lab: <project_path>/instance.json)
+instance            : str   — path to instance file (absolute in Dr. Claw: <project_path>/instance.json)
 idea_maturity       : str   — "task1" (plan) or "task2" (idea), or use task_level in load_instance cache
 category            : str   — research domain tag, agent-inferred (may match a built-in metaprompt or be "custom")
-Ideation.references : str   — path to Ideation/references (absolute in Vibe Lab)
-Ideation.ideas      : str   — path to Ideation/ideas (absolute in Vibe Lab)
-Experiment.code_references : str — path (absolute in Vibe Lab)
-Experiment.datasets : str   — path (absolute in Vibe Lab)
-Experiment.core_code: str   — path (absolute in Vibe Lab)
-Experiment.analysis : str   — path (absolute in Vibe Lab)
-Publication.paper   : str   — path (absolute in Vibe Lab)
+Ideation.references : str   — path to Ideation/references (absolute in Dr. Claw)
+Ideation.ideas      : str   — path to Ideation/ideas (absolute in Dr. Claw)
+Experiment.code_references : str — path (absolute in Dr. Claw)
+Experiment.datasets : str   — path (absolute in Dr. Claw)
+Experiment.core_code: str   — path (absolute in Dr. Claw)
+Experiment.analysis : str   — path (absolute in Dr. Claw)
+Publication.paper   : str   — path (absolute in Dr. Claw)
 references          : str   — formatted string from source_papers (built by the pipeline)
 ideas               : str   — (optional, plan-mode only) the user's full plan text
 ```
@@ -100,7 +100,7 @@ Minimal valid instance JSON (the bare minimum the pipeline needs):
 }
 ```
 
-Save this JSON to **`<project_path>/instance.json`** (project root). When created by Vibe Lab, the `instance` field and all path fields are absolute; hand-edited instances may use relative paths.
+Save this JSON to **`<project_path>/instance.json`** (project root). When created by Dr. Claw, the `instance` field and all path fields are absolute; hand-edited instances may use relative paths.
 
 ### 3b — Determine category and prepare dataset
 
@@ -172,10 +172,10 @@ Compose these into a `dataset_description` string and pass it to `inno-prepare-r
 
 #### Path layout
 
-The pipeline outputs are organized into five semantic top-level folders. **Vibe Lab creates these preset directories on project creation**: Survey/references, Survey/reports, Ideation/ideas, Ideation/references, Experiment/code_references, Experiment/datasets, Experiment/core_code, Experiment/analysis, Publication/paper, Promotion/homepage, Promotion/slides, Promotion/audio, Promotion/video. The orchestrator only needs to create `logs/` subdirs when writing caches. Paths in `instance.json` are **absolute** when created by Vibe Lab; use as-is, or resolve with `path.join(project_path, value)` if relative.
+The pipeline outputs are organized into five semantic top-level folders. **Dr. Claw creates these preset directories on project creation**: Survey/references, Survey/reports, Ideation/ideas, Ideation/references, Experiment/code_references, Experiment/datasets, Experiment/core_code, Experiment/analysis, Publication/paper, Promotion/homepage, Promotion/slides, Promotion/audio, Promotion/video. The orchestrator only needs to create `logs/` subdirs when writing caches. Paths in `instance.json` are **absolute** when created by Dr. Claw; use as-is, or resolve with `path.join(project_path, value)` if relative.
 
 ```
-project_path              = <current VibeLab project path>
+project_path              = <current Dr. Claw project path>
 Survey.references         = <project_path>/Survey/references
 Survey.reports            = <project_path>/Survey/reports
 Ideation.references       = <project_path>/Ideation/references
@@ -191,11 +191,11 @@ Promotion.audio           = <project_path>/Promotion/audio
 Promotion.video           = <project_path>/Promotion/video
 ```
 
-If the user has an existing workspace directory, use it. Otherwise, create any missing directories. **Vibe Lab–created projects already have** instance.json and the preset dirs below; create only `logs/` subdirs when writing caches.
+If the user has an existing workspace directory, use it. Otherwise, create any missing directories. **Dr. Claw–created projects already have** instance.json and the preset dirs below; create only `logs/` subdirs when writing caches.
 
 ```
 <project_path>/
-├── instance.json                          ← project root (Research Lab UI; paths absolute in Vibe Lab)
+├── instance.json                          ← project root (Research Lab UI; paths absolute in Dr. Claw)
 ├── Survey/
 │   ├── references/
 │   │   └── logs/                          ← survey/discovery caches
@@ -229,9 +229,9 @@ Create any missing directories and `logs/` subdirectories when writing caches.
 
 #### Required output file at project root
 
-The **Research Lab** UI reads **`instance.json`** from the project root. When **Vibe Lab creates a project**, it already writes this file and the preset dirs; paths are **absolute** (e.g. `<project_path>/Ideation/ideas`). The orchestrator **must** write or update instance.json when constructing from user input so the dashboard can display research status. Paths may be absolute (Vibe Lab default) or relative (hand-edited).
+The **Research Lab** UI reads **`instance.json`** from the project root. When **Dr. Claw creates a project**, it already writes this file and the preset dirs; paths are **absolute** (e.g. `<project_path>/Ideation/ideas`). The orchestrator **must** write or update instance.json when constructing from user input so the dashboard can display research status. Paths may be absolute (Dr. Claw default) or relative (hand-edited).
 
-**`instance.json`** must contain at least (paths absolute when created by Vibe Lab):
+**`instance.json`** must contain at least (paths absolute when created by Dr. Claw):
 
 ```json
 {
@@ -266,7 +266,7 @@ The **Research Lab** UI reads **`instance.json`** from the project root. When **
 }
 ```
 
-Include any instance-level fields (e.g. `source_papers`, `task2`/`task1`) at top level as needed by downstream skills. The `references` and `ideas` content strings are filled later by the prepare step; path keys above are directories (absolute in Vibe Lab–created projects).
+Include any instance-level fields (e.g. `source_papers`, `task2`/`task1`) at top level as needed by downstream skills. The `references` and `ideas` content strings are filled later by the prepare step; path keys above are directories (absolute in Dr. Claw–created projects).
 
 #### Cache seed file: `load_instance.json`
 

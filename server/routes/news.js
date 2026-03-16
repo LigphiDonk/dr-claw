@@ -468,7 +468,7 @@ router.get('/results', async (req, res) => {
 // Helpers
 // ---------------------------------------------------------------------------
 function buildYamlConfig(config) {
-  let yaml = '# Auto-generated from VibeLab News Dashboard config\n\n';
+  let yaml = '# Auto-generated from Dr. Claw News Dashboard config\n\n';
   yaml += 'research_domains:\n';
 
   const domains = config.research_domains || {};

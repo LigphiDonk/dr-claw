@@ -393,7 +393,7 @@ async function cleanupGeminiTempFiles(tempImagePaths, tempDir) {
 
 /**
  * Ensures a session directory exists and creates a basic JSONL metadata file if it doesn't.
- * This helps VibeLab discover the session even if the CLI hasn't written to it yet.
+ * This helps Dr. Claw discover the session even if the CLI hasn't written to it yet.
  */
 async function syncSessionMetadata(sessionId, projectPath) {
   if (!sessionId || !projectPath) return;
@@ -487,7 +487,7 @@ export async function spawnGemini(command, options = {}, ws) {
     if (command && command.trim()) {
       // const workflowPromptSuffix = [
       //   '',
-      //   '[VibeLab workflow requirements]',
+      //   '[Dr. Claw workflow requirements]',
       //   '- Follow project instructions from AGENTS.md / CLAUDE.md when available.',
       //   '- For any request requiring 2+ steps, call write_todos first and keep it updated (one in_progress at a time).',
       //   '- Maintain and update task state in .pipeline/tasks/tasks.json and .pipeline/docs/research_brief.json when progressing pipeline work.',
@@ -747,7 +747,7 @@ export async function spawnGemini(command, options = {}, ws) {
               const oldKey = capturedSessionId || initialKey;
               capturedSessionId = sid;
               
-              // Persist metadata to filesystem so VibeLab can discover it on refresh
+              // Persist metadata to filesystem so Dr. Claw can discover it on refresh
               await syncSessionMetadata(capturedSessionId, workingDir);
               
               // NEW: If we have an initial command, save it now that we have a real SID

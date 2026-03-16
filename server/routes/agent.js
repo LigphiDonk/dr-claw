@@ -1121,7 +1121,7 @@ router.post('/', validateExternalApiKey, async (req, res) => {
           } else {
             prBody += `Agent task: ${message}`;
           }
-          prBody += '\n\n---\n*This pull request was automatically created by Vibe Lab Agent.*';
+          prBody += '\n\n---\n*This pull request was automatically created by Dr. Claw Agent.*';
 
           console.log(`📝 PR Title: ${prTitle}`);
 

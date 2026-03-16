@@ -111,8 +111,8 @@ Orchestration ──► Research & Discovery ──► Ideation ──► Experi
   - Use the closest primary category for the skill's main capability; avoid overly broad custom names when a standard arXiv label exists.
 - `source`:
   - Use two levels:
-    - Internal: skills proposed/maintained by VibeLab (`来源: 平台自研` / `Source: Dr. Claw`).
-    - External: skills introduced from outside VibeLab (third-party/community/imported repositories).
+    - Internal: skills proposed/maintained by Dr. Claw (`来源: 平台自研` / `Source: Dr. Claw`).
+    - External: skills introduced from outside Dr. Claw (third-party/community/imported repositories).
   - `platformNativeSkills` should include all internal skills.
 - `stage`:
   - Keep stage tags aligned with the pipeline lifecycle. Recommended buckets:

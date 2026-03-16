@@ -681,7 +681,7 @@ async function getProjects(userId, progressCallback = null) {
 
       // LOGIC FOR VISIBILITY:
       // A. If it's already in DB and belongs to THIS user -> Visible
-      // B. If it's NOT in DB but is within the VibeLab workspace root -> Visible & Auto-claim
+      // B. If it's NOT in DB but is within the Dr. Claw workspace root -> Visible & Auto-claim
       // C. If it's NOT in DB and OUTSIDE the root -> IGNORE (avoid cluttering with external Claude projects)
       // D. If it's in DB but belongs to someone else -> HIDDEN
 
@@ -1397,7 +1397,7 @@ async function renameProject(projectName, newDisplayName, userId = null) {
   const config = await loadProjectConfig();
   const trimmedName = (newDisplayName || '').trim();
 
-  // 1. Update VibeLab Database (Source of Truth)
+  // 1. Update Dr. Claw Database (Source of Truth)
   const existing = projectDb.getProjectById(projectName);
   if (existing) {
     // Basic security: if project exists but belongs to someone else, don't allow rename
@@ -1581,7 +1581,7 @@ async function deleteProject(projectName, force = false) {
 
 /**
  * Create .claude, .agents, .cursor and their skills subdirs in the project,
- * and symlink each VibeLab skill directory into those skills subdirs.
+ * and symlink each Dr. Claw skill directory into those skills subdirs.
  * Also creates pipeline folders: Survey, Ideation, Experiment, Publication, Promotion.
  * Failures are logged but do not throw (project add still succeeds).
  */
@@ -1781,10 +1781,10 @@ async function ensureProjectSkillLinks(projectPath) {
     await fs.access(VIBELAB_SKILLS_DIR);
   } catch (err) {
     if (err.code === 'ENOENT') {
-      console.warn('[projects] VibeLab skills dir not found, skipping skill symlinks:', VIBELAB_SKILLS_DIR);
+      console.warn('[projects] Dr. Claw skills dir not found, skipping skill symlinks:', VIBELAB_SKILLS_DIR);
       return;
     }
-    console.error('[projects] Cannot access VibeLab skills dir:', err.message);
+    console.error('[projects] Cannot access Dr. Claw skills dir:', err.message);
     return;
   }
 
@@ -1848,7 +1848,7 @@ async function ensureProjectSkillLinks(projectPath) {
         }
       }
 
-      // Symlink JSON config files from VibeLab root into each project skills folder
+      // Symlink JSON config files from Dr. Claw root into each project skills folder
       for (const jsonFile of ['skill-tag-mapping.json', 'stage-skill-map.json']) {
         const srcJson = path.join(VIBELAB_SKILLS_DIR, jsonFile);
         const destJson = path.join(skillsSubdir, jsonFile);
@@ -2709,7 +2709,7 @@ async function renameSession(projectName, sessionId, newSummary, provider = 'cla
       };
       await fs.appendFile(geminiSessionFile, JSON.stringify(summaryEntry) + '\n');
 
-      // Also update VibeLab's own index (source of truth)
+      // Also update Dr. Claw's own index (source of truth)
       sessionDb.upsertSession(sessionId, projectName, provider, trimmedSummary, new Date().toISOString());
 
       console.log(`[Gemini] Renamed session ${sessionId} to "${trimmedSummary}"`);
@@ -2742,7 +2742,7 @@ async function renameSession(projectName, sessionId, newSummary, provider = 'cla
       await db.run("UPDATE meta SET value = ? WHERE key = 'title' OR key = 'sessionTitle'", [trimmedSummary]);
       await db.close();
 
-      // Update VibeLab's own index
+      // Update Dr. Claw's own index
       sessionDb.upsertSession(sessionId, projectName, provider, trimmedSummary, new Date().toISOString());
 
       console.log(`[Cursor] Renamed session ${sessionId} to "${trimmedSummary}"`);
@@ -2797,7 +2797,7 @@ async function renameSession(projectName, sessionId, newSummary, provider = 'cla
           };
           await fs.appendFile(jsonlFile, JSON.stringify(summaryEntry) + '\n');
 
-          // Update VibeLab's own index
+          // Update Dr. Claw's own index
           sessionDb.upsertSession(sessionId, projectName, provider, trimmedSummary, new Date().toISOString());
 
           console.log(`[Claude] Renamed session ${sessionId} to "${trimmedSummary}"`);
