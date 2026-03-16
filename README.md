@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/drclaw.jpg" alt="Dr. Claw" width="96" height="128">
+  <img src="public/dr-claw.png" alt="Dr. Claw" width="128" height="128">
   <h1>Dr. Claw: Your AI Research Assistant</h1>
   <p><strong>Full-stack research workspace.</strong></p>
 </div>

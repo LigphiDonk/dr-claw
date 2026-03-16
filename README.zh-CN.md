@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/favicon.png" alt="Dr. Claw" width="96" height="96">
+  <img src="public/dr-claw.png" alt="Dr. Claw" width="128" height="128">
   <h1>Dr. Claw: 面向科研全流程的通用 AI 研究助手</h1>
   <p><strong>在一个工作区里完成研究规划、执行与写作。</strong></p>
 </div>

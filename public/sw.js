@@ -1,5 +1,5 @@
 // Service Worker for Dr. Claw PWA
-const CACHE_NAME = 'claude-ui-v1';
+const CACHE_NAME = 'dr-claw-ui-v2';
 const urlsToCache = [
   '/',
   '/index.html',
