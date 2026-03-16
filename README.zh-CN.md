@@ -47,6 +47,17 @@
 
 Dr. Claw 是一个面向不同研究方向的通用 AI 研究助手，帮助研究者和团队完成从想法形成、实验推进到论文产出的全流程工作。它把关键研究环节整合到同一个空间中，让你把精力放在问题本身和迭代质量上，而不是工具切换与流程拼接。
 
+<details>
+<summary><strong>理念：杠杆化认知</strong></summary>
+
+<p align="center">
+  <img src="public/leveraged-cognition.png" alt="Leveraged Cognition" width="900">
+</p>
+
+**纯手工太慢，完全交给 AI 又太平庸，Vibe Researching 才是新的范式。** Dr. Claw 以 **Agentic Execution** 放大你的 **Research Taste**，让你既能更快推进、更大胆探索，也始终守住科研严谨性的底线。
+
+</details>
+
 ## 亮点
 
 - **🔬 Research Lab** — 端到端研究仪表盘：定义研究简报、生成任务流水线、追踪 Survey → Ideation → Experiment → Publication → Promotion 各阶段进度，一览参考论文、Idea（支持 LaTeX 数学公式渲染）和缓存产物

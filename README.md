@@ -47,6 +47,17 @@
 
 Dr. Claw is a general-purpose AI research assistant designed to help researchers and builders execute end-to-end projects across different domains. From shaping an initial idea to running experiments and preparing publication-ready outputs, Dr. Claw keeps the full workflow in one place so teams can focus on research quality and iteration speed.
 
+<details>
+<summary><strong>The Philosophy: Leveraged Cognition</strong></summary>
+
+<p align="center">
+  <img src="public/leveraged-cognition.png" alt="Leveraged Cognition" width="900">
+</p>
+
+**Manual work is too slow. Fully automated AI is too generic. Vibe Researching is the new frontier.** Dr. Claw turns your **Research Taste** into outsized outcomes with **Agentic Execution**--so you can move faster, think bigger, and still hold the line on scientific rigor.
+
+</details>
+
 ## Highlights
 
 - **🔬 Research Lab** — Structured dashboard for end-to-end research: define your brief, generate a pipeline of tasks, track progress across Survey → Ideation → Experiment → Publication → Promotion, and inspect source papers, ideas (rendered with LaTeX math), and cache artifacts — all at a glance
