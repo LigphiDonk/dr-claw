@@ -58,7 +58,7 @@ const NodeCard = ({ node, isActive, onSelect, onEdit, onDelete }) => (
     <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">
       {node.type === 'slurm' ? 'Slurm HPC' : 'Direct GPU'}
     </div>
-    <div className="text-xs text-gray-400 dark:text-gray-500 truncate">{node.user}@{node.host}</div>
+    <div className="text-xs text-gray-400 dark:text-gray-500 truncate">{node.user}@{node.host}{node.port && node.port !== 22 ? `:${node.port}` : ''}</div>
     <div className="flex gap-1 mt-2">
       <button onClick={(e) => { e.stopPropagation(); onEdit(node); }}
         className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
@@ -79,6 +79,7 @@ const NodeFormDialog = ({ node, onSave, onClose }) => {
   const [form, setForm] = useState({
     name: node?.name || '',
     host: node?.host || '',
+    port: node?.port || 22,
     user: node?.user || '',
     workDir: node?.workDir || '~',
     authType: node?.keyPath ? 'key' : (node?.hasPassword ? 'password' : 'password'),
@@ -98,9 +99,16 @@ const NodeFormDialog = ({ node, onSave, onClose }) => {
     setSaving(true);
     setError(null);
     try {
+      const portNum = parseInt(form.port) || 22;
+      if (portNum < 1 || portNum > 65535) {
+        setError('Port must be between 1 and 65535');
+        setSaving(false);
+        return;
+      }
       const payload = {
         name: form.name.trim() || form.host.trim(),
         host: form.host.trim(),
+        port: portNum,
         user: form.user.trim(),
         workDir: form.workDir.trim() || '~',
         authType: form.authType,
@@ -154,8 +162,17 @@ const NodeFormDialog = ({ node, onSave, onClose }) => {
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-[1fr_80px_1fr] gap-3">
             <div><Label>Host</Label><Input placeholder="bridges2.psc.edu" value={form.host} onChange={e => setForm({...form, host: e.target.value})} required /></div>
+            <div>
+              <Label>Port</Label>
+              <Input type="number" min="1" max="65535" placeholder="22"
+                className={`[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${form.port !== '' && (parseInt(form.port) < 1 || parseInt(form.port) > 65535 || isNaN(parseInt(form.port))) ? 'border-red-500 focus:ring-red-500' : ''}`}
+                value={form.port} onChange={e => setForm({...form, port: e.target.value})} />
+              {form.port !== '' && (parseInt(form.port) < 1 || parseInt(form.port) > 65535 || isNaN(parseInt(form.port))) && (
+                <p className="text-xs text-red-500 mt-0.5">1–65535</p>
+              )}
+            </div>
             <div><Label>Username</Label><Input placeholder="root" value={form.user} onChange={e => setForm({...form, user: e.target.value})} required /></div>
           </div>
           <div><Label>Work Directory</Label><Input placeholder="/ocean/projects/..." value={form.workDir} onChange={e => setForm({...form, workDir: e.target.value})} /></div>
@@ -188,7 +205,7 @@ const NodeFormDialog = ({ node, onSave, onClose }) => {
             </div>
           )}
           {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
-          <Button type="submit" className="w-full" disabled={saving || !form.host || !form.user}>
+          <Button type="submit" className="w-full" disabled={saving || !form.host || !form.user || parseInt(form.port) < 1 || parseInt(form.port) > 65535 || isNaN(parseInt(form.port))}>
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             {saving ? 'Saving...' : (isEdit ? 'Update Node' : 'Add Node')}
           </Button>
@@ -611,7 +628,7 @@ const ComputePanel = ({ selectedProject }) => {
                 <div className="text-center text-gray-400">
                   <Cpu className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">Direct GPU Node</p>
-                  <p className="text-xs mt-1">{activeNode.user}@{activeNode.host}</p>
+                  <p className="text-xs mt-1">{activeNode.user}@{activeNode.host}{activeNode.port && activeNode.port !== 22 ? `:${activeNode.port}` : ''}</p>
                   {activeNode.workDir && activeNode.workDir !== '~' && (
                     <p className="text-xs mt-0.5 text-gray-500">{activeNode.workDir}</p>
                   )}
@@ -627,7 +644,7 @@ const ComputePanel = ({ selectedProject }) => {
             <div className="p-2.5 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
               <Terminal className="w-4 h-4 text-green-500" />
               <span className="text-sm font-medium text-gray-900 dark:text-white">
-                SSH Terminal — {activeNode.user}@{activeNode.host}
+                SSH Terminal — {activeNode.user}@{activeNode.host}{activeNode.port && activeNode.port !== 22 ? `:${activeNode.port}` : ''}
               </span>
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             </div>

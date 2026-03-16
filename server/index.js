@@ -1946,6 +1946,11 @@ function handleComputeShellConnection(ws, urlNodeId) {
                 const spawnCmd = 'ssh';
                 const sshArgs = ['-o', 'StrictHostKeyChecking=no', '-tt'];
 
+                const sshPort = config.port || 22;
+                if (sshPort !== 22) {
+                    sshArgs.push('-p', String(sshPort));
+                }
+
                 if (config.keyPath) {
                     sshArgs.push('-i', config.keyPath);
                 }
