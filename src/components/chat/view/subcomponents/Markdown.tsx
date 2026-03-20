@@ -202,17 +202,21 @@ export function Markdown({ children, className, onFileOpen }: MarkdownProps) {
       ...markdownComponents,
       // Make markdown links open as files if href looks like a file path
       a: ({ href, children: linkChildren }: { href?: string; children?: React.ReactNode }) => {
-        if (href && !/^(?:https?:|mailto:|tel:|#)/.test(href) && isFilePath(href)) {
-          const { filePath } = parseFilePath(href);
-          return (
-            <button
-              onClick={() => onFileOpen(filePath)}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline cursor-pointer transition-colors"
-              title={`Open ${filePath}`}
-            >
-              {linkChildren}
-            </button>
-          );
+        if (href && !/^(?:https?:|mailto:|tel:|#)/.test(href)) {
+          // Strip fragment (e.g. #L1) before checking if it's a file path
+          const hrefWithoutFragment = href.replace(/#.*$/, '');
+          if (isFilePath(hrefWithoutFragment)) {
+            const { filePath } = parseFilePath(hrefWithoutFragment);
+            return (
+              <button
+                onClick={() => onFileOpen(filePath)}
+                className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline cursor-pointer transition-colors"
+                title={`Open ${filePath}`}
+              >
+                {linkChildren}
+              </button>
+            );
+          }
         }
         return (
           <a href={href} className="text-blue-600 dark:text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer">
