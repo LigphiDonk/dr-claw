@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus, Terminal, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -15,12 +15,36 @@ type ShellInstance = {
 };
 
 const AnyStandaloneShell = StandaloneShell as any;
+const STORAGE_KEY_PREFIX = 'shell-workspace-state:';
 
 const createShellId = () =>
   `shell-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
+const normalizeShells = (value: unknown): ShellInstance[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is ShellInstance => (
+      Boolean(item) &&
+      typeof item === 'object' &&
+      typeof (item as ShellInstance).id === 'string' &&
+      typeof (item as ShellInstance).title === 'string'
+    ))
+    .map((item) => ({
+      id: item.id,
+      title: item.title,
+    }));
+};
+
 export default function ShellWorkspace({ project }: ShellWorkspaceProps) {
   const { t } = useTranslation('chat');
+
+  const storageKey = useMemo(() => {
+    const projectKey = project.fullPath || project.path || project.name;
+    return `${STORAGE_KEY_PREFIX}${projectKey}`;
+  }, [project.fullPath, project.path, project.name]);
 
   const createShellInstance = (index: number): ShellInstance => ({
     id: createShellId(),
@@ -35,15 +59,57 @@ export default function ShellWorkspace({ project }: ShellWorkspaceProps) {
     };
   };
 
-  const [initialWorkspace] = useState(() => createInitialWorkspace());
-  const [shells, setShells] = useState<ShellInstance[]>(initialWorkspace.shells);
-  const [activeShellId, setActiveShellId] = useState<string>(initialWorkspace.activeShellId);
+  const loadWorkspaceState = () => {
+    if (typeof window === 'undefined') {
+      return createInitialWorkspace();
+    }
+
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      if (!stored) {
+        return createInitialWorkspace();
+      }
+
+      const parsed = JSON.parse(stored) as { shells?: unknown; activeShellId?: unknown };
+      const storedShells = normalizeShells(parsed?.shells);
+      if (storedShells.length === 0) {
+        return createInitialWorkspace();
+      }
+
+      const storedActiveShellId = typeof parsed?.activeShellId === 'string' ? parsed.activeShellId : null;
+      const activeShellId = storedShells.some((shell) => shell.id === storedActiveShellId)
+        ? storedActiveShellId!
+        : storedShells[0].id;
+
+      return {
+        shells: storedShells,
+        activeShellId,
+      };
+    } catch {
+      return createInitialWorkspace();
+    }
+  };
+
+  const [initialWorkspaceState] = useState(() => loadWorkspaceState());
+  const [shells, setShells] = useState<ShellInstance[]>(initialWorkspaceState.shells);
+  const [activeShellId, setActiveShellId] = useState<string>(initialWorkspaceState.activeShellId);
 
   useEffect(() => {
-    const initialShell = createShellInstance(1);
-    setShells([initialShell]);
-    setActiveShellId(initialShell.id);
-  }, [project.fullPath]);
+    const nextState = loadWorkspaceState();
+    setShells(nextState.shells);
+    setActiveShellId(nextState.activeShellId);
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(storageKey, JSON.stringify({
+      shells,
+      activeShellId,
+    }));
+  }, [storageKey, shells, activeShellId]);
 
   const handleAddShell = () => {
     const nextShell = createShellInstance(shells.length + 1);
