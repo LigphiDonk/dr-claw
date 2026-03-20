@@ -7,6 +7,7 @@ const LoginForm = () => {
   const { t } = useTranslation('auth');
   const [mode, setMode] = useState('login');
   const [username, setUsername] = useState('');
+  const [notificationEmail, setNotificationEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -20,6 +21,7 @@ const LoginForm = () => {
     setMode(nextMode);
     setError('');
     setUsername('');
+    setNotificationEmail('');
     setPassword('');
     setConfirmPassword('');
   };
@@ -48,12 +50,18 @@ const LoginForm = () => {
         setError(t('register.errors.passwordLength'));
         return;
       }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(notificationEmail.trim())) {
+        setError(t('register.errors.invalidEmail'));
+        return;
+      }
     }
 
     setIsLoading(true);
 
     const result = isRegisterMode
-      ? await register(username.trim(), password)
+      ? await register(username.trim(), password, notificationEmail.trim())
       : await login(username.trim(), password);
 
     if (!result.success) {
@@ -114,6 +122,24 @@ const LoginForm = () => {
                 disabled={isLoading}
               />
             </div>
+
+            {isRegisterMode && (
+              <div>
+                <label htmlFor="notificationEmail" className="block text-sm font-medium text-foreground mb-1">
+                  {t('register.email')}
+                </label>
+                <input
+                  type="email"
+                  id="notificationEmail"
+                  value={notificationEmail}
+                  onChange={(e) => setNotificationEmail(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder={t('register.placeholders.email')}
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+            )}
 
             {isRegisterMode && (
               <div>

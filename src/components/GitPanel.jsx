@@ -30,11 +30,13 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
   const [isPulling, setIsPulling] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isInitializingRepo, setIsInitializingRepo] = useState(false);
   const [isCommitAreaCollapsed, setIsCommitAreaCollapsed] = useState(isMobile); // Collapsed by default on mobile
   const [confirmAction, setConfirmAction] = useState(null); // { type: 'discard|commit|pull|push', file?: string, message?: string }
   const [isCreatingInitialCommit, setIsCreatingInitialCommit] = useState(false);
   const textareaRef = useRef(null);
   const dropdownRef = useRef(null);
+  const isMissingGitRepoError = gitStatus?.error && gitStatus.error.toLowerCase().includes('not a git repository');
 
   // Get current provider from localStorage (same as ChatInterface does)
   const [provider, setProvider] = useState(() => {
@@ -58,6 +60,11 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
     setBranches([]);
     setGitStatus(null);
     setRemoteStatus(null);
+    setRecentCommits([]);
+    setGitDiff({});
+    setCommitDiffs({});
+    setExpandedFiles(new Set());
+    setExpandedCommits(new Set());
     setSelectedFiles(new Set());
 
     if (!selectedProject) {
@@ -65,8 +72,6 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
     }
 
     fetchGitStatus();
-    fetchBranches();
-    fetchRemoteStatus();
   }, [selectedProject]);
 
   useEffect(() => {
@@ -103,11 +108,27 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
         console.error('Git status error:', data.error);
         setGitStatus({ error: data.error, details: data.details });
         setCurrentBranch('');
+        setBranches([]);
+        setRemoteStatus(null);
+        setRecentCommits([]);
+        setGitDiff({});
+        setCommitDiffs({});
+        setExpandedFiles(new Set());
+        setExpandedCommits(new Set());
         setSelectedFiles(new Set());
       } else {
         setGitStatus(data);
         setCurrentBranch(data.branch || 'main');
-        
+        fetchBranches();
+        fetchRemoteStatus();
+
+        // Proactively fetch history if there are commits
+        if (data.hasCommits) {
+          fetchRecentCommits();
+        } else {
+          setRecentCommits([]);
+        }
+
         // Auto-select all changed files
         const allFiles = new Set([
           ...(data.modified || []),
@@ -175,6 +196,34 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
     }
   };
 
+  const initializeGitRepository = async () => {
+    if (!selectedProject) return;
+
+    setIsInitializingRepo(true);
+    try {
+      const response = await authenticatedFetch('/api/git/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project: selectedProject.name
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        await fetchGitStatus();
+      } else {
+        console.error('Git init failed:', data.error);
+        alert(data.error || 'Failed to enable git for this project');
+      }
+    } catch (error) {
+      console.error('Error initializing git repository:', error);
+      alert('Failed to enable git for this project');
+    } finally {
+      setIsInitializingRepo(false);
+    }
+  };
+
   const switchBranch = async (branchName) => {
     try {
       const response = await authenticatedFetch('/api/git/checkout', {
@@ -190,7 +239,7 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
       if (data.success) {
         setCurrentBranch(branchName);
         setShowBranchDropdown(false);
-        fetchGitStatus(); // Refresh status after branch switch
+        await fetchGitStatus(); // Refresh status after branch switch
       } else {
         console.error('Failed to switch branch:', data.error);
       }
@@ -219,8 +268,7 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
         setShowNewBranchModal(false);
         setShowBranchDropdown(false);
         setNewBranchName('');
-        fetchBranches(); // Refresh branch list
-        fetchGitStatus(); // Refresh status
+        await fetchGitStatus(); // Refresh status and branches
       } else {
         console.error('Failed to create branch:', data.error);
       }
@@ -245,8 +293,7 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
       const data = await response.json();
       if (data.success) {
         // Refresh status after successful fetch
-        fetchGitStatus();
-        fetchRemoteStatus();
+        await fetchGitStatus();
       } else {
         console.error('Fetch failed:', data.error);
       }
@@ -271,8 +318,7 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
       const data = await response.json();
       if (data.success) {
         // Refresh status after successful pull
-        fetchGitStatus();
-        fetchRemoteStatus();
+        await fetchGitStatus();
       } else {
         console.error('Pull failed:', data.error);
         // TODO: Show user-friendly error message
@@ -298,8 +344,7 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
       const data = await response.json();
       if (data.success) {
         // Refresh status after successful push
-        fetchGitStatus();
-        fetchRemoteStatus();
+        await fetchGitStatus();
       } else {
         console.error('Push failed:', data.error);
         // TODO: Show user-friendly error message
@@ -326,8 +371,7 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
       const data = await response.json();
       if (data.success) {
         // Refresh status after successful publish
-        fetchGitStatus();
-        fetchRemoteStatus();
+        await fetchGitStatus();
       } else {
         console.error('Publish failed:', data.error);
         // TODO: Show user-friendly error message
@@ -358,7 +402,7 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
           newSet.delete(filePath);
           return newSet;
         });
-        fetchGitStatus();
+        await fetchGitStatus();
       } else {
         console.error('Discard failed:', data.error);
       }
@@ -386,7 +430,7 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
           newSet.delete(filePath);
           return newSet;
         });
-        fetchGitStatus();
+        await fetchGitStatus();
       } else {
         console.error('Delete failed:', data.error);
       }
@@ -588,8 +632,7 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
         // Reset state after successful commit
         setCommitMessage('');
         setSelectedFiles(new Set());
-        fetchGitStatus();
-        fetchRemoteStatus();
+        await fetchGitStatus();
       } else {
         console.error('Commit failed:', data.error);
       }
@@ -613,8 +656,7 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
 
       const data = await response.json();
       if (data.success) {
-        fetchGitStatus();
-        fetchRemoteStatus();
+        await fetchGitStatus();
       } else {
         console.error('Initial commit failed:', data.error);
         alert(data.error || 'Failed to create initial commit');
@@ -870,7 +912,7 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
         
         <div className={`flex items-center ${isMobile ? 'gap-1' : 'gap-2'}`}>
           {/* Remote action buttons - smart logic based on ahead/behind status */}
-          {remoteStatus?.hasRemote && (
+          {remoteStatus?.hasRemote && gitStatus?.hasCommits !== false && (
             <>
               {/* Publish button - show when branch doesn't exist on remote */}
               {!remoteStatus?.hasUpstream && (
@@ -941,10 +983,8 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
           )}
           
           <button
-            onClick={() => {
-              fetchGitStatus();
-              fetchBranches();
-              fetchRemoteStatus();
+            onClick={async () => {
+              await fetchGitStatus();
             }}
             disabled={isLoading}
             className={`hover:bg-accent rounded-lg transition-colors ${isMobile ? 'p-1' : 'p-1.5'}`}
@@ -960,15 +1000,51 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
           <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-6">
             <GitBranch className="w-8 h-8 opacity-40" />
           </div>
-          <h3 className="text-lg font-medium mb-3 text-center text-foreground">{gitStatus.error}</h3>
-          {gitStatus.details && (
-            <p className="text-sm text-center leading-relaxed mb-6 max-w-md">{gitStatus.details}</p>
+          {isMissingGitRepoError ? (
+            <>
+              <h3 className="text-lg font-medium mb-3 text-center text-foreground">Git isn&apos;t enabled for this project yet</h3>
+              <p className="text-sm text-center leading-relaxed mb-3 max-w-md text-muted-foreground">
+                Git helps you keep a history of your files, see what changed, and safely go back if needed.
+              </p>
+              <p className="text-sm text-center leading-relaxed mb-6 max-w-md text-muted-foreground">
+                You don&apos;t need to use the terminal here. Click the button below and VibeLab will set it up for you.
+              </p>
+              <div className="flex flex-col items-center gap-3 w-full max-w-md">
+                <button
+                  onClick={initializeGitRepository}
+                  disabled={isInitializingRepo}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+                >
+                  {isInitializingRepo ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Enabling Git...</span>
+                    </>
+                  ) : (
+                    <>
+                      <GitBranch className="w-4 h-4" />
+                      <span>Enable Git for This Project</span>
+                    </>
+                  )}
+                </button>
+                <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 max-w-md">
+                  <p className="text-sm text-primary text-center leading-relaxed">
+                    After setup, you can create your first snapshot from this panel. Advanced users can still use <code className="bg-primary/10 px-2 py-1 rounded-md font-mono text-xs">git init</code> in the project folder.
+                  </p>
+                </div>
+                {gitStatus.details && gitStatus.details !== gitStatus.error && (
+                  <p className="text-xs text-center text-muted-foreground max-w-md break-words">{gitStatus.details}</p>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <h3 className="text-lg font-medium mb-3 text-center text-foreground">{gitStatus.error}</h3>
+              {gitStatus.details && (
+                <p className="text-sm text-center leading-relaxed max-w-md break-words">{gitStatus.details}</p>
+              )}
+            </>
           )}
-          <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 max-w-md">
-            <p className="text-sm text-primary text-center">
-              <strong>Tip:</strong> Run <code className="bg-primary/10 px-2 py-1 rounded-md font-mono text-xs">git init</code> in your project directory to initialize git source control.
-            </p>
-          </div>
         </div>
       ) : (
         <>
@@ -1219,7 +1295,7 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
                 )}
               </button>
             </div>
-          ) : !gitStatus || (!gitStatus.modified?.length && !gitStatus.added?.length && !gitStatus.deleted?.length) ? (
+          ) : !gitStatus || (!gitStatus.modified?.length && !gitStatus.added?.length && !gitStatus.deleted?.length && !gitStatus.untracked?.length) ? (
             <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
               <GitCommit className="w-10 h-10 mb-2 opacity-40" />
               <p className="text-sm">No changes detected</p>
@@ -1229,6 +1305,7 @@ function GitPanel({ selectedProject, isMobile, onFileOpen }) {
               {gitStatus.modified?.map(file => renderFileItem(file, 'M'))}
               {gitStatus.added?.map(file => renderFileItem(file, 'A'))}
               {gitStatus.deleted?.map(file => renderFileItem(file, 'D'))}
+              {gitStatus.untracked?.map(file => renderFileItem(file, 'U'))}
             </div>
           )}
         </div>

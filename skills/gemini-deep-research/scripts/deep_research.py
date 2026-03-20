@@ -88,22 +88,30 @@ def poll_interaction(api_key, interaction_id, stream=False):
 
 
 def extract_report(interaction_data):
-    """Extract the final report from interaction data"""
+    """Extract the final report from interaction data.
+
+    The Interactions API returns an 'outputs' array of typed blocks.
+    The report text is in the last block with type 'text'.
+    """
+    # Primary: outputs array (current Interactions API format)
+    outputs = interaction_data.get("outputs", [])
+    if outputs:
+        # Walk backwards to find the last text block
+        for block in reversed(outputs):
+            if isinstance(block, dict) and block.get("type") == "text" and "text" in block:
+                return block["text"]
+            # Some responses may omit 'type' but still have 'text'
+            elif isinstance(block, dict) and "text" in block and "type" not in block:
+                return block["text"]
+
+    # Fallback: 'output' (singular) in case API format varies
     if "output" in interaction_data:
         output = interaction_data["output"]
         if isinstance(output, dict) and "text" in output:
             return output["text"]
         elif isinstance(output, str):
             return output
-    
-    # Fallback: look in messages
-    messages = interaction_data.get("messages", [])
-    for msg in reversed(messages):
-        if msg.get("role") == "model" and "parts" in msg:
-            for part in msg["parts"]:
-                if "text" in part:
-                    return part["text"]
-    
+
     return None
 
 

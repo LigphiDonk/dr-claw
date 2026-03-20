@@ -58,7 +58,7 @@ export interface ChatMessage {
   [key: string]: unknown;
 }
 
-export interface ClaudeSettings {
+export interface ProviderSettings {
   allowedTools: string[];
   disallowedTools: string[];
   skipPermissions: boolean;
@@ -67,7 +67,7 @@ export interface ClaudeSettings {
   [key: string]: unknown;
 }
 
-export interface ClaudePermissionSuggestion {
+export interface PermissionSuggestion {
   toolName: string;
   entry: string;
   isAllowed: boolean;
@@ -76,7 +76,7 @@ export interface ClaudePermissionSuggestion {
 export interface PermissionGrantResult {
   success: boolean;
   alreadyAllowed?: boolean;
-  updatedSettings?: ClaudeSettings;
+  updatedSettings?: ProviderSettings;
 }
 
 export interface PendingPermissionRequest {

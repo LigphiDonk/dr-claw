@@ -1,13 +1,14 @@
 import React from 'react';
 import type { PendingPermissionRequest } from '../../types/types';
-import { buildClaudeToolPermissionEntry, formatToolInputForDisplay } from '../../utils/chatPermissions';
-import { getClaudeSettings } from '../../utils/chatStorage';
+import { buildToolPermissionEntry, formatToolInputForDisplay } from '../../utils/chatPermissions';
+import { getProviderSettings } from '../../utils/chatStorage';
 import { getPermissionPanel, registerPermissionPanel } from '../../tools/configs/permissionPanelRegistry';
 import { AskUserQuestionPanel } from '../../tools/components/InteractiveRenderers';
 
 registerPermissionPanel('AskUserQuestion', AskUserQuestionPanel);
 
 interface PermissionRequestsBannerProps {
+  provider: string;
   pendingPermissionRequests: PendingPermissionRequest[];
   handlePermissionDecision: (
     requestIds: string | string[],
@@ -17,6 +18,7 @@ interface PermissionRequestsBannerProps {
 }
 
 export default function PermissionRequestsBanner({
+  provider,
   pendingPermissionRequests,
   handlePermissionDecision,
   handleGrantToolPermission,
@@ -40,15 +42,15 @@ export default function PermissionRequestsBanner({
         }
 
         const rawInput = formatToolInputForDisplay(request.input);
-        const permissionEntry = buildClaudeToolPermissionEntry(request.toolName, rawInput);
-        const settings = getClaudeSettings();
+        const permissionEntry = buildToolPermissionEntry(request.toolName, rawInput);
+        const settings = getProviderSettings(provider);
         const alreadyAllowed = permissionEntry ? settings.allowedTools.includes(permissionEntry) : false;
         const rememberLabel = alreadyAllowed ? 'Allow (saved)' : 'Allow & remember';
         const matchingRequestIds = permissionEntry
           ? pendingPermissionRequests
               .filter(
                 (item) =>
-                  buildClaudeToolPermissionEntry(item.toolName, formatToolInputForDisplay(item.input)) === permissionEntry,
+                  buildToolPermissionEntry(item.toolName, formatToolInputForDisplay(item.input)) === permissionEntry,
               )
               .map((item) => item.requestId)
           : [request.requestId];

@@ -1,8 +1,8 @@
 import { safeJsonParse } from '../../../lib/utils.js';
-import type { ChatMessage, ClaudePermissionSuggestion, PermissionGrantResult } from '../types/types.js';
-import { CLAUDE_SETTINGS_KEY, getClaudeSettings, safeLocalStorage } from './chatStorage';
+import type { ChatMessage, PermissionSuggestion, PermissionGrantResult } from '../types/types.js';
+import { getProviderSettings, getProviderSettingsKey, safeLocalStorage } from './chatStorage';
 
-export function buildClaudeToolPermissionEntry(toolName?: string, toolInput?: unknown) {
+export function buildToolPermissionEntry(toolName?: string, toolInput?: unknown) {
   if (!toolName) return null;
   if (toolName !== 'Bash') return toolName;
 
@@ -29,26 +29,26 @@ export function formatToolInputForDisplay(input: unknown) {
   }
 }
 
-export function getClaudePermissionSuggestion(
+export function getPermissionSuggestion(
   message: ChatMessage | null | undefined,
   provider: string,
-): ClaudePermissionSuggestion | null {
-  if (provider !== 'claude') return null;
+): PermissionSuggestion | null {
+  if (provider !== 'claude' && provider !== 'gemini') return null;
   if (!message?.toolResult?.isError) return null;
 
   const toolName = message?.toolName;
-  const entry = buildClaudeToolPermissionEntry(toolName, message.toolInput);
+  const entry = buildToolPermissionEntry(toolName, message.toolInput);
   if (!entry) return null;
 
-  const settings = getClaudeSettings();
+  const settings = getProviderSettings(provider);
   const isAllowed = settings.allowedTools.includes(entry);
   return { toolName: toolName || 'UnknownTool', entry, isAllowed };
 }
 
-export function grantClaudeToolPermission(entry: string | null): PermissionGrantResult {
+export function grantToolPermission(entry: string | null, provider?: string): PermissionGrantResult {
   if (!entry) return { success: false };
 
-  const settings = getClaudeSettings();
+  const settings = getProviderSettings(provider);
   const alreadyAllowed = settings.allowedTools.includes(entry);
   const nextAllowed = alreadyAllowed ? settings.allowedTools : [...settings.allowedTools, entry];
   const nextDisallowed = settings.disallowedTools.filter((tool) => tool !== entry);
@@ -59,6 +59,6 @@ export function grantClaudeToolPermission(entry: string | null): PermissionGrant
     lastUpdated: new Date().toISOString(),
   };
 
-  safeLocalStorage.setItem(CLAUDE_SETTINGS_KEY, JSON.stringify(updatedSettings));
+  safeLocalStorage.setItem(getProviderSettingsKey(provider), JSON.stringify(updatedSettings));
   return { success: true, alreadyAllowed, updatedSettings };
 }

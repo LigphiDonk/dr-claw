@@ -173,6 +173,7 @@ export default function ChatComposer({
     <div className={`p-2 sm:p-4 md:p-4 flex-shrink-0 pb-2 sm:pb-4 md:pb-6 ${mobileFloatingClass}`}>
       <div className="max-w-5xl mx-auto mb-3">
         <PermissionRequestsBanner
+          provider={provider}
           pendingPermissionRequests={pendingPermissionRequests}
           handlePermissionDecision={handlePermissionDecision}
           handleGrantToolPermission={handleGrantToolPermission}
