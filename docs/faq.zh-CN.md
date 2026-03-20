@@ -91,14 +91,15 @@ echo "${CODEX_SANDBOX_NETWORK_DISABLED:-0}"
 
 **问题：** 执行 `npm install` 时崩溃，报错信息包含 `node-gyp rebuild`、`Request timed out` 或 `Could not find any Visual Studio installation`。
 
-**原因：** 这些包包含 C++ 原生模块。在 Windows 上，npm 会尝试从 GitHub 下载预编译的二进制文件。如果网络连接超时，它会转而尝试在本地调用 Python 和 Visual Studio 进行编译。如果本地缺少 C++ 编译环境，则会报错。
+**原因：** 这些包包含 C++ 原生模块。在 Windows 上，npm 通常会先尝试从 GitHub 下载预编译的二进制文件。如果网络超时或无法访问这些资源，它会回退到本地 `node-gyp` 编译流程，并进一步依赖 Python 和 Visual Studio 的 C++ 构建环境。
 
-**解决方案：** 无需安装Visual Studio，直接通过镜像源下载预编译的二进制文件即可：
+**解决方案：** 如果问题是预编译二进制下载失败，通常无需先安装 Visual Studio。可以改用镜像源重新执行完整的 `npm install`：
 
 ```bash
-# 1. 卸载安装失败的残留
-npm uninstall better-sqlite3 sqlite3
+# 使用镜像源下载预编译二进制，然后重新安装项目依赖
+npm_config_better_sqlite3_binary_host_mirror=https://registry.npmmirror.com/-/binary/better-sqlite3 \
+npm_config_sqlite3_binary_host_mirror=https://registry.npmmirror.com/-/binary/sqlite3 \
+npm install
+```
 
-# 2. 使用镜像源强行重新安装（下面使用了阿里云镜像源）
-npm install better-sqlite3 --better_sqlite3_binary_host_mirror=https://registry.npmmirror.com/-/binary/better-sqlite3
-npm install sqlite3 --sqlite3_binary_host_mirror=https://registry.npmmirror.com/-/binary/sqlite3
+这样不会修改项目的 `package.json`，并且会按仓库锁定版本完成完整安装流程。
