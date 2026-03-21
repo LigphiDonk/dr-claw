@@ -10,6 +10,7 @@ import { queryClaudeSDK, abortClaudeSDKSession, isClaudeSDKSessionActive } from 
 import { queryCodex, abortCodexSession, isCodexSessionActive } from '../openai-codex.js';
 import { spawnGemini, abortGeminiSession, isGeminiSessionActive } from '../gemini-cli.js';
 import { sendAutoResearchCompletionEmail } from '../utils/auto-research-mailer.js';
+import { getGeminiApiKeyForUser, withGeminiApiKeyEnv } from '../utils/geminiApiKey.js';
 
 const router = express.Router();
 
@@ -290,6 +291,9 @@ async function runAutoResearch(runId, userId, projectName, projectPath) {
   }
 
   try {
+    const geminiApiKey = getGeminiApiKeyForUser(userId);
+    const sessionEnv = withGeminiApiKeyEnv(process.env, geminiApiKey);
+
     let pipelineState = await readPipelineState(projectPath);
     autoResearchDb.updateRun(runId, {
       status: 'running',
@@ -331,6 +335,7 @@ async function runAutoResearch(runId, userId, projectName, projectPath) {
             cwd: projectPath,
             projectPath,
             sessionId: runState.sessionId,
+            env: sessionEnv,
             model,
             permissionMode,
           }, writer)
@@ -339,6 +344,7 @@ async function runAutoResearch(runId, userId, projectName, projectPath) {
               cwd: projectPath,
               projectPath,
               sessionId: runState.sessionId,
+              env: sessionEnv,
               model,
               permissionMode,
             }, writer)
@@ -346,6 +352,7 @@ async function runAutoResearch(runId, userId, projectName, projectPath) {
               cwd: projectPath,
               projectPath,
               sessionId: runState.sessionId,
+              env: sessionEnv,
               permissionMode,
             }, writer),
         TASK_TIMEOUT_MS,

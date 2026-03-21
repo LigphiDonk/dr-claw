@@ -234,6 +234,7 @@ export async function queryCodex(command, options = {}, ws) {
     cwd,
     projectPath,
     model,
+    env,
     permissionMode = 'default',
     sessionMode
   } = options;
@@ -248,7 +249,7 @@ export async function queryCodex(command, options = {}, ws) {
 
   try {
     // Initialize Codex SDK
-    codex = new Codex();
+    codex = new Codex(env ? { env } : undefined);
 
     // Thread options with sandbox and approval settings
     const threadOptions = {

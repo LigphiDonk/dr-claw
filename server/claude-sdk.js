@@ -37,13 +37,17 @@ function resolveToolApproval(requestId, decision) {
  * @returns {Object} SDK-compatible options
  */
 function mapCliOptionsToSDK(options = {}) {
-  const { sessionId, cwd, toolsSettings, permissionMode, images } = options;
+  const { sessionId, cwd, toolsSettings, permissionMode, images, env } = options;
 
   const sdkOptions = {};
 
   // Map working directory
   if (cwd) {
     sdkOptions.cwd = cwd;
+  }
+
+  if (env) {
+    sdkOptions.env = env;
   }
 
   // Map permission mode

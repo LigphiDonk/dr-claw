@@ -439,7 +439,7 @@ async function syncSessionMetadata(sessionId, projectPath) {
  */
 export async function spawnGemini(command, options = {}, ws) {
   return new Promise(async (resolve, reject) => {
-    const { sessionId, projectPath, cwd, model, images, permissionMode, toolsSettings, sessionMode } = options;
+    const { sessionId, projectPath, cwd, model, images, permissionMode, toolsSettings, sessionMode, env } = options;
     let capturedSessionId = sessionId;
     let sessionCreatedSent = false;
     let messageStartedSent = false;
@@ -531,7 +531,7 @@ export async function spawnGemini(command, options = {}, ws) {
     
     const geminiCommand = process.env.GEMINI_CLI_PATH || 'gemini';
 
-    const cleanEnv = { ...process.env };
+    const cleanEnv = { ...(env || process.env) };
     // Non-interactive JSON streaming: avoid terminal renderer hard-wrap artifacts.
     cleanEnv.TERM = 'dumb';
     cleanEnv.COLUMNS = '1000';

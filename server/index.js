@@ -73,6 +73,7 @@ import { validateApiKey, authenticateToken, authenticateWebSocket } from './midd
 import { IS_PLATFORM } from './constants/config.js';
 import { enqueueTelemetryEvent } from './telemetry.js';
 import { resolveCursorCliCommand, isCursorLoginCommand, isGeminiLoginCommand, normalizeCursorLoginCommand } from './utils/cursorCommand.js';
+import { getGeminiApiKeyForUser, withGeminiApiKeyEnv } from './utils/geminiApiKey.js';
 
 // File system watchers for provider project/session folders
 const PROVIDER_WATCH_PATHS = [
@@ -1259,12 +1260,16 @@ function handleChatConnection(ws, request) {
     connectedClients.add(ws);
 
     const user = request?.user || {};
+    const userId = user.userId || user.id || null;
     const telemetryContext = {
-        userId: user.userId || user.id || null,
+        userId: userId,
         username: user.username || null,
         clientType: 'websocket',
         telemetryEnabled: true,
     };
+
+    const geminiApiKey = getGeminiApiKeyForUser(userId);
+    const sessionEnv = withGeminiApiKeyEnv(process.env, geminiApiKey);
 
     // Wrap WebSocket with writer for consistent interface with SSEStreamWriter
     const writer = new WebSocketWriter(ws, telemetryContext);
@@ -1299,7 +1304,7 @@ function handleChatConnection(ws, request) {
                 writer.telemetryContext = { ...telemetryContext, provider: 'claude', telemetryEnabled: commandTelemetryEnabled };
 
                 // Use Claude Agents SDK
-                await queryClaudeSDK(data.command, data.options, writer);
+                await queryClaudeSDK(data.command, { ...data.options, env: sessionEnv }, writer);
             } else if (data.type === 'cursor-command') {
                 console.log('[DEBUG] Cursor message:', data.command || '[Continue/Resume]');
                 console.log('📁 Project:', data.options?.cwd || 'Unknown');
@@ -1318,7 +1323,7 @@ function handleChatConnection(ws, request) {
                     { ...telemetryContext, telemetryEnabled: commandTelemetryEnabled },
                 );
                 writer.telemetryContext = { ...telemetryContext, provider: 'cursor', telemetryEnabled: commandTelemetryEnabled };
-                await spawnCursor(data.command, data.options, writer);
+                await spawnCursor(data.command, { ...data.options, env: sessionEnv }, writer);
             } else if (data.type === 'codex-command') {
                 console.log('[DEBUG] Codex message:', data.command || '[Continue/Resume]');
                 console.log('📁 Project:', data.options?.projectPath || data.options?.cwd || 'Unknown');
@@ -1337,7 +1342,7 @@ function handleChatConnection(ws, request) {
                     { ...telemetryContext, telemetryEnabled: commandTelemetryEnabled },
                 );
                 writer.telemetryContext = { ...telemetryContext, provider: 'codex', telemetryEnabled: commandTelemetryEnabled };
-                await queryCodex(data.command, data.options, writer);
+                await queryCodex(data.command, { ...data.options, env: sessionEnv }, writer);
             } else if (data.type === 'gemini-command') {
                 console.log('[DEBUG] Gemini message:', data.command || '[Continue/Resume]');
                 console.log('📁 Project:', data.options?.projectPath || data.options?.cwd || 'Unknown');
@@ -1356,14 +1361,15 @@ function handleChatConnection(ws, request) {
                     { ...telemetryContext, telemetryEnabled: commandTelemetryEnabled },
                 );
                 writer.telemetryContext = { ...telemetryContext, provider: 'gemini', telemetryEnabled: commandTelemetryEnabled };
-                await spawnGemini(data.command, data.options, writer);
+                await spawnGemini(data.command, { ...data.options, env: sessionEnv }, writer);
             } else if (data.type === 'cursor-resume') {
                 // Backward compatibility: treat as cursor-command with resume and no prompt
                 console.log('[DEBUG] Cursor resume session (compat):', data.sessionId);
                 await spawnCursor('', {
                     sessionId: data.sessionId,
                     resume: true,
-                    cwd: data.options?.cwd
+                    cwd: data.options?.cwd,
+                    env: sessionEnv
                 }, writer);
             } else if (data.type === 'abort-session') {
                 console.log('[DEBUG] Abort session request:', data.sessionId);

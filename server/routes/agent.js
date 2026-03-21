@@ -13,6 +13,7 @@ import { spawnGemini } from '../gemini-cli.js';
 import { Octokit } from '@octokit/rest';
 import { CLAUDE_MODELS, CURSOR_MODELS, CODEX_MODELS, GEMINI_MODELS } from '../../shared/modelConstants.js';
 import { IS_PLATFORM } from '../constants/config.js';
+import { getGeminiApiKeyForUser, withGeminiApiKeyEnv } from '../utils/geminiApiKey.js';
 
 const router = express.Router();
 
@@ -940,6 +941,9 @@ router.post('/', validateExternalApiKey, async (req, res) => {
       });
     }
 
+    const geminiApiKey = getGeminiApiKeyForUser(req.user?.id);
+    const sessionEnv = withGeminiApiKeyEnv(process.env, geminiApiKey);
+
     // Start the appropriate session
     if (provider === 'claude') {
       console.log('🤖 Starting Claude SDK session');
@@ -949,6 +953,7 @@ router.post('/', validateExternalApiKey, async (req, res) => {
         cwd: finalProjectPath,
         sessionId: null, // New session
         model: model,
+        env: sessionEnv,
         permissionMode: 'bypassPermissions' // Bypass all permissions for API calls
       }, writer);
 
@@ -960,6 +965,7 @@ router.post('/', validateExternalApiKey, async (req, res) => {
         cwd: finalProjectPath,
         sessionId: null, // New session
         model: model || undefined,
+        env: sessionEnv,
         skipPermissions: true // Bypass permissions for Cursor
       }, writer);
     } else if (provider === 'codex') {
@@ -970,6 +976,7 @@ router.post('/', validateExternalApiKey, async (req, res) => {
         cwd: finalProjectPath,
         sessionId: null,
         model: model || CODEX_MODELS.DEFAULT,
+        env: sessionEnv,
         permissionMode: 'bypassPermissions'
       }, writer);
     } else if (provider === 'gemini') {
@@ -979,6 +986,7 @@ router.post('/', validateExternalApiKey, async (req, res) => {
         projectPath: finalProjectPath,
         cwd: finalProjectPath,
         sessionId: null,
+        env: sessionEnv,
         model: model || GEMINI_MODELS.DEFAULT
       }, writer);
     }
