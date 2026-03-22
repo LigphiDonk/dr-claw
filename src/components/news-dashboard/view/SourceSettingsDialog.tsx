@@ -2,6 +2,7 @@ import {
   Cookie,
   Loader2,
   Plus,
+  QrCode,
   Settings2,
   Terminal,
   Trash2,
@@ -29,7 +30,7 @@ const SOURCE_TITLE_KEYS: Record<NewsSourceKey, string> = {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyConfig = Record<string, any>;
-
+type XhsLoginMethod = 'browser' | 'qrcode';
 const XHS_COOKIE_SOURCES = [
   { value: 'auto', label: 'Auto' },
   { value: 'chrome', label: 'Chrome' },
@@ -40,7 +41,9 @@ const XHS_COOKIE_SOURCES = [
   { value: 'brave', label: 'Brave' },
   { value: 'vivaldi', label: 'Vivaldi' },
   { value: 'opera', label: 'Opera' },
+  { value: 'opera_gx', label: 'Opera GX' },
   { value: 'librewolf', label: 'LibreWolf' },
+  { value: 'safari', label: 'Safari' },
 ];
 
 function shouldPreferXhsQrLogin() {
@@ -49,7 +52,6 @@ function shouldPreferXhsQrLogin() {
 
   const hostname = window.location.hostname.toLowerCase();
   const localHostnames = new Set(['localhost', '127.0.0.1', '::1']);
-
   return !localHostnames.has(hostname);
 }
 
@@ -163,7 +165,7 @@ function XhsLoginSection() {
   const [isLogging, setIsLogging] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [cookieSource, setCookieSource] = useState('auto');
-  const [activeMethod, setActiveMethod] = useState<'browser' | 'qrcode'>(preferQrLogin ? 'qrcode' : 'browser');
+  const [activeMethod, setActiveMethod] = useState<XhsLoginMethod>(preferQrLogin ? 'qrcode' : 'browser');
   const [result, setResult] = useState<{ success: boolean; message?: string; hint?: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -173,14 +175,18 @@ function XhsLoginSection() {
     }
   }, [logs]);
 
-  const handleLogin = async (method: 'browser' | 'qrcode') => {
+  const handleLogin = async (method: XhsLoginMethod) => {
     setIsLogging(true);
     setLogs([]);
     setResult(null);
     setActiveMethod(method);
 
     try {
-      const res = await api.news.xhsLogin({ method, cookieSource });
+      const requestBody = method === 'browser'
+        ? { method, cookieSource }
+        : { method };
+
+      const res = await api.news.xhsLogin(requestBody);
       const data = await res.json();
 
       if (data.logs?.length) setLogs(data.logs);
@@ -191,7 +197,6 @@ function XhsLoginSection() {
           message: method === 'qrcode'
             ? (data.nickname ? t('settings.cookieSuccessWithName', { nickname: data.nickname }) : t('settings.qrSuccess'))
             : (data.nickname ? t('settings.cookieSuccessWithName', { nickname: data.nickname }) : t('settings.cookieSuccess')),
-          hint: data.contextHint,
         });
       } else {
         setResult({
@@ -227,24 +232,18 @@ function XhsLoginSection() {
           {t('settings.qrRecommendedHint')}
         </div>
       )}
-      <div className="space-y-1.5">
-        <label className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
-          {t('settings.cookieSource')}
-        </label>
-        <p className="text-[11px] text-muted-foreground">
-          {t('settings.cookieSourceDescription')}
-        </p>
-        <select
-          value={cookieSource}
-          onChange={(e) => setCookieSource(e.target.value)}
-          className="w-full rounded-lg border border-border/50 bg-background px-3 py-2 text-sm focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
-        >
-          {XHS_COOKIE_SOURCES.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
-          ))}
-        </select>
-      </div>
-      <div className="flex flex-wrap gap-2">
+
+      <div className={`rounded-xl border p-3.5 space-y-2.5 ${preferQrLogin ? 'border-primary/40 bg-primary/5' : 'border-border/40 bg-background/50'}`}>
+        <div className="flex items-center gap-2">
+          <QrCode className="h-4 w-4 text-muted-foreground" />
+          <h5 className="text-xs font-semibold text-foreground">{t('settings.qrLoginTitle')}</h5>
+          {preferQrLogin && (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-primary">
+              {t('settings.recommendedTag')}
+            </span>
+          )}
+        </div>
+        <p className="text-[11px] text-muted-foreground">{t('settings.qrLoginDescription')}</p>
         <Button
           size="sm"
           variant={preferQrLogin ? 'default' : 'outline'}
@@ -252,10 +251,31 @@ function XhsLoginSection() {
           disabled={isLogging}
           className="rounded-lg text-xs gap-1.5"
         >
-          {isLogging && activeMethod === 'qrcode' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Terminal className="h-3 w-3" />}
+          {isLogging && activeMethod === 'qrcode' ? <Loader2 className="h-3 w-3 animate-spin" /> : <QrCode className="h-3 w-3" />}
           {isLogging && activeMethod === 'qrcode' ? t('settings.qrLoggingIn') : t('settings.loginViaQr')}
-          {preferQrLogin && <span className="ml-1 rounded-full bg-white/70 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-sky-700 dark:bg-sky-100/10 dark:text-sky-200">{t('settings.recommendedTag')}</span>}
         </Button>
+      </div>
+
+      <div className={`rounded-xl border p-3.5 space-y-2.5 ${preferQrLogin ? 'border-border/40 bg-background/50' : 'border-primary/40 bg-primary/5'}`}>
+        <div className="flex items-center gap-2">
+          <Cookie className="h-4 w-4 text-muted-foreground" />
+          <h5 className="text-xs font-semibold text-foreground">{t('settings.browserCookieAuth')}</h5>
+        </div>
+        <p className="text-[11px] text-muted-foreground">{t('settings.cookieSourceDescription')}</p>
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+            {t('settings.cookieSource')}
+          </label>
+          <select
+            value={cookieSource}
+            onChange={(e) => setCookieSource(e.target.value)}
+            className="w-full rounded-lg border border-border/50 bg-background px-3 py-2 text-sm focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
+          >
+            {XHS_COOKIE_SOURCES.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </div>
         <Button
           size="sm"
           variant={preferQrLogin ? 'outline' : 'default'}
@@ -267,9 +287,6 @@ function XhsLoginSection() {
           {isLogging && activeMethod === 'browser' ? t('settings.extracting') : t('settings.extractBrowserCookie')}
         </Button>
       </div>
-      <p className="text-[11px] text-muted-foreground">
-        {t('settings.loginMethodDescription')}
-      </p>
 
       {logs.length > 0 && (
         <div

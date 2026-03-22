@@ -356,9 +356,6 @@ router.post('/xhs-login', (req, res) => {
     'auto', 'arc', 'brave', 'chrome', 'chromium', 'edge', 'firefox', 'librewolf', 'opera', 'opera_gx', 'safari', 'vivaldi',
   ]);
   const cookieSource = allowedCookieSources.has(requestedCookieSource) ? requestedCookieSource : 'auto';
-  const contextHint = requestedMethod === 'browser'
-    ? 'Browser cookie extraction runs on the machine hosting the dr-claw service, not on the device where this page is open.'
-    : 'QR login is the recommended fallback for remote deployments and Linux browser-cookie issues.';
   const commandArgs = ['login'];
   if (requestedMethod === 'qrcode') {
     commandArgs.push('--qrcode');
@@ -374,6 +371,13 @@ router.post('/xhs-login', (req, res) => {
   let stdoutBuf = '';
   let stderrBuf = '';
   const logs = [];
+  let responded = false;
+
+  const sendOnce = (status, payload) => {
+    if (responded || res.headersSent) return;
+    responded = true;
+    res.status(status).json(payload);
+  };
 
   child.stdout.on('data', (data) => { stdoutBuf += data.toString(); });
   child.stderr.on('data', (data) => {
@@ -392,6 +396,7 @@ router.post('/xhs-login', (req, res) => {
     let authenticated = false;
     let nickname = '';
     let error = '';
+    let contextHint = '';
     try {
       const result = JSON.parse(stdoutBuf);
       authenticated = !!(result?.ok && result?.data?.authenticated);
@@ -406,26 +411,36 @@ router.post('/xhs-login', (req, res) => {
       }
     }
 
-    if (!authenticated && !error && code !== 0) {
+    if (!authenticated && !error) {
       error = requestedMethod === 'qrcode'
         ? 'QR login failed or timed out.'
         : 'Browser cookie extraction failed.';
     }
 
-    res.json({
+    if (!authenticated) {
+      contextHint = requestedMethod === 'qrcode'
+        ? 'QR login is recommended for remote deployments and Linux browser-cookie issues.'
+        : 'Browser cookie extraction runs on the machine hosting the dr-claw service, not on the device where this page is open.';
+    }
+
+    sendOnce(200, {
       success: authenticated,
       nickname,
       logs,
       exitCode: code,
       method: requestedMethod,
       cookieSource,
-      contextHint,
       error,
+      contextHint: contextHint || undefined,
     });
   });
 
   child.on('error', (err) => {
-    res.status(500).json({
+    const contextHint = requestedMethod === 'qrcode'
+      ? 'QR login is recommended for remote deployments and Linux browser-cookie issues.'
+      : 'Browser cookie extraction runs on the machine hosting the dr-claw service, not on the device where this page is open.';
+
+    sendOnce(500, {
       success: false,
       error: `Failed to run xhs login: ${err.message}`,
       logs,
