@@ -912,6 +912,154 @@ function mapIndexedSessionToProjectSession(session, provider) {
   };
 }
 
+function getSessionPlaceholderName(provider) {
+  switch (provider) {
+    case 'cursor':
+      return 'Untitled Session';
+    case 'codex':
+      return 'Codex Session';
+    case 'gemini':
+      return 'Gemini Session';
+    default:
+      return 'New Session';
+  }
+}
+
+function isPlaceholderSessionName(provider, displayName) {
+  return String(displayName || '').trim() === getSessionPlaceholderName(provider);
+}
+
+async function shouldRefreshIndexedSession(provider, indexedSession, parsedSession) {
+  if (!parsedSession) {
+    return false;
+  }
+
+  if (!indexedSession) {
+    return true;
+  }
+
+  const indexedName = String(indexedSession.display_name || indexedSession.name || indexedSession.summary || '').trim();
+  const parsedName = String(parsedSession.summary || parsedSession.name || '').trim();
+  if (parsedName && indexedName !== parsedName) {
+    return true;
+  }
+
+  const indexedCount = Number(indexedSession.message_count ?? indexedSession.messageCount ?? 0);
+  const parsedCount = Number(parsedSession.messageCount ?? 0);
+  if (parsedCount > indexedCount) {
+    return true;
+  }
+
+  const { normalizeSessionTimestamp } = await import('./database/db.js');
+  const indexedLastActivity = normalizeSessionTimestamp(indexedSession.last_activity || indexedSession.lastActivity);
+  const parsedLastActivity = normalizeSessionTimestamp(parsedSession.lastActivity);
+  if (parsedLastActivity && parsedLastActivity !== indexedLastActivity) {
+    return true;
+  }
+
+  const indexedMode = extractSessionModeFromMetadata(indexedSession.metadata);
+  const parsedMode = normalizeSessionMode(parsedSession.mode);
+  if (indexedMode !== parsedMode) {
+    return true;
+  }
+
+  return isPlaceholderSessionName(provider, indexedName) && Boolean(parsedName);
+}
+
+async function reconcileIndexedSessionFromSource(projectName, provider, parsedSession, indexedSession = null, projectPath = null) {
+  const { sessionDb, normalizeSessionTimestamp } = await import('./database/db.js');
+
+  const resolvedProjectPath =
+    projectPath ||
+    parsedSession.projectPath ||
+    parsedSession.cwd ||
+    indexedSession?.metadata?.projectPath ||
+    await extractProjectDirectory(projectName).catch(() => null);
+  const metadata = {
+    ...(indexedSession?.metadata && typeof indexedSession.metadata === 'object' ? indexedSession.metadata : {}),
+    sessionMode: normalizeSessionMode(parsedSession.mode),
+    indexState: 'synced',
+  };
+  if (resolvedProjectPath) {
+    metadata.projectPath = resolvedProjectPath;
+  }
+
+  sessionDb.upsertSessionFromSource(parsedSession.id, projectName, provider, {
+    displayName: parsedSession.summary || parsedSession.name || null,
+    lastActivity: normalizeSessionTimestamp(parsedSession.lastActivity),
+    messageCount: Number(parsedSession.messageCount || 0),
+    metadata,
+    createdAt: parsedSession.createdAt || indexedSession?.created_at || null,
+    isStarred: indexedSession?.is_starred ?? 0,
+  });
+}
+
+async function reconcileClaudeSessionIndex(projectName, targetSessionId = null) {
+  if (targetSessionId) {
+    const projectDir = path.join(os.homedir(), '.claude', 'projects', projectName);
+    const sessionFile = path.join(projectDir, `${targetSessionId}.jsonl`);
+    const { sessionDb } = await import('./database/db.js');
+
+    try {
+      await fs.access(sessionFile);
+    } catch (error) {
+      if (error?.code === 'ENOENT') {
+        return { sessions: [], hasMore: false, total: 0, session: null };
+      }
+      throw error;
+    }
+
+    const dbSessions = sessionDb.getSessionsByProject(projectName);
+    const dbSessionMap = new Map(dbSessions.filter((session) => session.provider === 'claude').map((session) => [session.id, session]));
+    const projectPath = await extractProjectDirectory(projectName).catch(() => null);
+    const result = await parseJsonlSessions(sessionFile, projectName, dbSessionMap);
+    const session = (result.sessions || []).find((item) => item.id === targetSessionId) || null;
+
+    if (session) {
+      const indexedSession = dbSessionMap.get(session.id) || null;
+      if (await shouldRefreshIndexedSession('claude', indexedSession, session)) {
+        await reconcileIndexedSessionFromSource(projectName, 'claude', session, indexedSession, projectPath);
+      }
+    }
+
+    return {
+      sessions: session ? [session] : [],
+      hasMore: false,
+      total: session ? 1 : 0,
+      session,
+    };
+  }
+
+  return getSessions(projectName, 0, 0);
+}
+
+async function reconcileGeminiSessionIndex(projectPath, options = {}) {
+  const { limit = 0, sessionId = null, projectName = null } = options;
+  return getGeminiSessions(projectPath, {
+    limit,
+    syncIndex: true,
+    sessionId,
+    projectName,
+  });
+}
+
+async function reconcileCodexSessionIndex(projectPath, options = {}) {
+  const { limit = 0, sessionId = null, previousSessionId = null, projectName = null } = options;
+  const sessions = await getCodexSessions(projectPath, {
+    limit,
+    syncIndex: true,
+    sessionId,
+    projectName,
+  });
+
+  if (previousSessionId && sessionId && previousSessionId !== sessionId) {
+    const { sessionDb } = await import('./database/db.js');
+    sessionDb.migrateSessionId(previousSessionId, sessionId, 'codex', projectName || encodeProjectPath(projectPath));
+  }
+
+  return sessions;
+}
+
 async function getProjects(userId, progressCallback = null) {
   const { projectDb, sessionDb } = await import('./database/db.js');
   const config = await loadProjectConfig();
@@ -1107,6 +1255,7 @@ async function getSessions(projectName, limit = 5, offset = 0, userId = null) {
     // Usually sessions inherit project ownership, but we store it anyway.
     const dbSessions = sessionDb.getSessionsByProject(projectName);
     const dbSessionMap = new Map(dbSessions.filter(s => s.provider === 'claude').map(s => [s.id, s]));
+    const projectPath = await extractProjectDirectory(projectName).catch(() => null);
 
     // ... (rest of getSessions remains mostly same, but ensures it uses the DB map correctly)
 
@@ -1133,14 +1282,6 @@ async function getSessions(projectName, limit = 5, offset = 0, userId = null) {
       result.sessions.forEach(session => {
         if (!allSessions.has(session.id)) {
           allSessions.set(session.id, session);
-
-          // Upsert new sessions discovered from files to DB for caching
-          if (!dbSessionMap.has(session.id)) {
-            const lastActivity = session.lastActivity instanceof Date ? session.lastActivity.toISOString() : session.lastActivity;
-            sessionDb.upsertSession(session.id, projectName, 'claude', session.summary, lastActivity, session.messageCount, {
-              sessionMode: normalizeSessionMode(session.mode),
-            });
-          }
         }
       });
 
@@ -1217,9 +1358,20 @@ async function getSessions(projectName, limit = 5, offset = 0, userId = null) {
       .filter(session => !session.summary.startsWith('{ "'))
       .sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity));
 
+    await Promise.all(
+      visibleSessions.map(async (session) => {
+        const indexedSession = dbSessionMap.get(session.id) || null;
+        if (!await shouldRefreshIndexedSession('claude', indexedSession, session)) {
+          return;
+        }
+
+        await reconcileIndexedSessionFromSource(projectName, 'claude', session, indexedSession, projectPath);
+      })
+    );
+
     const total = visibleSessions.length;
-    const paginatedSessions = visibleSessions.slice(offset, offset + limit);
-    const hasMore = offset + limit < total;
+    const paginatedSessions = limit > 0 ? visibleSessions.slice(offset, offset + limit) : visibleSessions.slice(offset);
+    const hasMore = limit > 0 ? offset + limit < total : false;
 
     return {
       sessions: paginatedSessions,
@@ -2491,7 +2643,7 @@ async function getGeminiSessions(projectPath, optionsOrUserId = null) {
   const options = optionsOrUserId && typeof optionsOrUserId === 'object' && !Array.isArray(optionsOrUserId)
     ? optionsOrUserId
     : {};
-  const { limit = 5, indexRef = null } = options;
+  const { limit = 5, indexRef = null, syncIndex = false, sessionId: targetSessionId = null, projectName: providedProjectName = null } = options;
   try {
     const normalizedProjectPath = await normalizeComparablePath(projectPath);
     const normalizedLegacyProjectPath = await normalizeComparablePath(remapCurrentProjectPathToLegacy(projectPath));
@@ -2515,8 +2667,25 @@ async function getGeminiSessions(projectPath, optionsOrUserId = null) {
         ...session,
         projectPath,
       }));
+    const filteredSessions = targetSessionId
+      ? dedupedSessions.filter((session) => session.id === targetSessionId)
+      : dedupedSessions;
 
-    return limit > 0 ? dedupedSessions.slice(0, limit) : dedupedSessions;
+    if (syncIndex) {
+      const { sessionDb } = await import('./database/db.js');
+      const projectName = providedProjectName || encodeProjectPath(projectPath);
+      await Promise.allSettled(
+        filteredSessions.map(async (session) => {
+          const indexedSession = sessionDb.getSessionById(session.id);
+          await reconcileIndexedSessionFromSource(projectName, 'gemini', {
+            ...session,
+            summary: session.summary || session.name,
+          }, indexedSession, projectPath);
+        })
+      );
+    }
+
+    return limit > 0 ? filteredSessions.slice(0, limit) : filteredSessions;
   } catch (error) {
     console.error('Error fetching Gemini sessions:', error);
     return [];
@@ -2757,7 +2926,7 @@ async function buildCodexSessionsIndex() {
 
 // Fetch Codex sessions for a given project path
 async function getCodexSessions(projectPath, options = {}) {
-  const { limit = 5, indexRef = null } = options;
+  const { limit = 5, indexRef = null, syncIndex = false, sessionId: targetSessionId = null, projectName: providedProjectName = null } = options;
   try {
     const normalizedProjectPath = await normalizeComparablePath(projectPath);
     const normalizedLegacyProjectPath = await normalizeComparablePath(remapCurrentProjectPathToLegacy(projectPath));
@@ -2778,7 +2947,26 @@ async function getCodexSessions(projectPath, options = {}) {
 
     // Return limited sessions for performance (0 = unlimited for deletion)
     const dedupedSessions = Array.from(new Map(sessions.map((session) => [session.id, session])).values());
-    return limit > 0 ? dedupedSessions.slice(0, limit) : dedupedSessions;
+    const filteredSessions = targetSessionId
+      ? dedupedSessions.filter((session) => session.id === targetSessionId)
+      : dedupedSessions;
+
+    if (syncIndex) {
+      const { sessionDb } = await import('./database/db.js');
+      const projectName = providedProjectName || encodeProjectPath(projectPath);
+      await Promise.allSettled(
+        filteredSessions.map(async (session) => {
+          const indexedSession = sessionDb.getSessionById(session.id);
+          await reconcileIndexedSessionFromSource(projectName, 'codex', {
+            ...session,
+            summary: session.summary || session.name,
+            createdAt: session.createdAt || session.lastActivity,
+          }, indexedSession, projectPath);
+        })
+      );
+    }
+
+    return limit > 0 ? filteredSessions.slice(0, limit) : filteredSessions;
 
   } catch (error) {
     console.error('Error fetching Codex sessions:', error);
@@ -3193,10 +3381,7 @@ async function renameSession(projectName, sessionId, newSummary, provider = 'cla
       await fs.appendFile(geminiSessionFile, JSON.stringify(summaryEntry) + '\n');
 
       // Also update Dr. Claw's own index (source of truth)
-      const existing = sessionDb.getSessionById(sessionId);
-      sessionDb.upsertSession(sessionId, projectName, provider, trimmedSummary, new Date().toISOString(), 0, {
-        sessionMode: extractSessionModeFromMetadata(existing?.metadata),
-      });
+      sessionDb.updateSessionName(sessionId, trimmedSummary);
 
       console.log(`[Gemini] Renamed session ${sessionId} to "${trimmedSummary}"`);
       return true;
@@ -3229,10 +3414,7 @@ async function renameSession(projectName, sessionId, newSummary, provider = 'cla
       await db.close();
 
       // Update Dr. Claw's own index
-      const existing = sessionDb.getSessionById(sessionId);
-      sessionDb.upsertSession(sessionId, projectName, provider, trimmedSummary, new Date().toISOString(), 0, {
-        sessionMode: extractSessionModeFromMetadata(existing?.metadata),
-      });
+      sessionDb.updateSessionName(sessionId, trimmedSummary);
 
       console.log(`[Cursor] Renamed session ${sessionId} to "${trimmedSummary}"`);
       return true;
@@ -3287,10 +3469,7 @@ async function renameSession(projectName, sessionId, newSummary, provider = 'cla
           await fs.appendFile(jsonlFile, JSON.stringify(summaryEntry) + '\n');
 
           // Update Dr. Claw's own index
-          const existing = sessionDb.getSessionById(sessionId);
-          sessionDb.upsertSession(sessionId, projectName, provider, trimmedSummary, new Date().toISOString(), 0, {
-            sessionMode: extractSessionModeFromMetadata(existing?.metadata),
-          });
+          sessionDb.updateSessionName(sessionId, trimmedSummary);
 
           console.log(`[Claude] Renamed session ${sessionId} to "${trimmedSummary}"`);
           return true;
@@ -3327,6 +3506,9 @@ export {
   getGeminiSessions,
   getCodexSessionMessages,
   deleteCodexSession,
+  reconcileClaudeSessionIndex,
+  reconcileCodexSessionIndex,
+  reconcileGeminiSessionIndex,
   ensureProjectSkillLinks,
   getWorkspaceRootFromConfig,
   setWorkspaceRootInConfig

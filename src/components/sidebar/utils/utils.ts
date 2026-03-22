@@ -46,7 +46,7 @@ export const getSessionDate = (session: SessionWithProvider): Date => {
   }
 
   if (session.__provider === 'codex' || session.__provider === 'gemini') {
-    return new Date(session.createdAt || session.lastActivity || 0);
+    return new Date(session.lastActivity || session.createdAt || 0);
   }
 
   return new Date(session.lastActivity || 0);
@@ -88,7 +88,7 @@ export const getSessionTime = (session: SessionWithProvider): string => {
   }
 
   if (session.__provider === 'codex' || session.__provider === 'gemini') {
-    return String(session.createdAt || session.lastActivity || '');
+    return String(session.lastActivity || session.createdAt || '');
   }
 
   return String(session.lastActivity || '');
