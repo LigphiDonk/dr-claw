@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-  splitLegacyGeminiThoughtContent,
-  normalizePersistedGeminiAssistantEntries,
-} from '../gemini-cli.js';
+import { splitLegacyGeminiThoughtContent } from '../../shared/geminiThoughtParser.js';
+import { normalizePersistedGeminiAssistantEntries } from '../gemini-cli.js';
 
 describe('splitLegacyGeminiThoughtContent (server)', () => {
   it('returns null for plain text without markers', () => {
@@ -64,7 +62,7 @@ describe('normalizePersistedGeminiAssistantEntries', () => {
       'thinking content\n[Thought: true]\nfinal answer'
     );
     expect(result).toEqual([
-      { type: 'thinking', content: 'thinking content' },
+      { role: 'assistant', type: 'thinking', content: 'thinking content' },
       { role: 'assistant', content: 'final answer', type: 'message' },
     ]);
   });
@@ -74,8 +72,8 @@ describe('normalizePersistedGeminiAssistantEntries', () => {
       't1\n[Thought: true]\nt2\n[Thought: true]\nfinal'
     );
     expect(result).toEqual([
-      { type: 'thinking', content: 't1' },
-      { type: 'thinking', content: 't2' },
+      { role: 'assistant', type: 'thinking', content: 't1' },
+      { role: 'assistant', type: 'thinking', content: 't2' },
       { role: 'assistant', content: 'final', type: 'message' },
     ]);
   });

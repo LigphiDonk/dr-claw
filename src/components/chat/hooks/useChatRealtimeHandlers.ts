@@ -210,7 +210,6 @@ export function useChatRealtimeHandlers({
       if (part.type === 'text' && part.text?.trim()) {
         let content = decodeHtmlEntities(part.text);
         content = formatUsageLimitText(content);
-        content = unescapeWithMathProtection(content);
         newMessages.push(...buildAssistantMessages(content, new Date()));
       }
     });
@@ -247,7 +246,6 @@ export function useChatRealtimeHandlers({
   const handleSimpleAssistantMessage = (structuredData: any) => {
     let content = decodeHtmlEntities(structuredData.content);
     content = formatUsageLimitText(content);
-    content = unescapeWithMathProtection(content);
 
     setChatMessages((previous) => [
       ...previous,

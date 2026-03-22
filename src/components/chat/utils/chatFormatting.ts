@@ -166,30 +166,9 @@ export function formatUsageLimitText(text: string) {
   }
 }
 
-type LegacyGeminiThoughtSegment = {
-  content: string;
-  isThinking: boolean;
-};
-
-export function splitLegacyGeminiThoughtContent(text: string): LegacyGeminiThoughtSegment[] | null {
-  if (!text || typeof text !== 'string' || !/\[Thought:\s*true\]/i.test(text)) {
-    return null;
-  }
-
-  const segments = text
-    .split(/\n?\s*\[Thought:\s*true\]\s*/i)
-    .map((segment) => segment.trim())
-    .filter(Boolean);
-
-  if (segments.length < 2) {
-    return null;
-  }
-
-  return segments.map((segment, index) => ({
-    content: segment,
-    isThinking: index < segments.length - 1,
-  }));
-}
+// Re-export from shared module — single source of truth for both server and client
+import { splitLegacyGeminiThoughtContent } from '../../../../shared/geminiThoughtParser.js';
+export { splitLegacyGeminiThoughtContent };
 
 export function buildAssistantMessages(
   content: string,

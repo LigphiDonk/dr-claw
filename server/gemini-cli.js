@@ -8,6 +8,7 @@ import { ensureProjectSkillLinks } from './projects.js';
 import { writeProjectTemplates } from './templates/index.js';
 import { stripInternalContextPrefix } from './utils/sessionFormatting.js';
 import { recordIndexedSession } from './utils/sessionIndex.js';
+import { splitLegacyGeminiThoughtContent } from '../shared/geminiThoughtParser.js';
 
 // Use cross-spawn on Windows for better command execution
 const spawnFunction = process.platform === 'win32' ? crossSpawn : spawn;
@@ -129,27 +130,6 @@ function sanitizePersistedGeminiContent(content) {
 }
 
 // Exported for testing only
-export function splitLegacyGeminiThoughtContent(text) {
-  if (typeof text !== 'string' || !/\[Thought:\s*true\]/i.test(text)) {
-    return null;
-  }
-
-  const segments = text
-    .split(/\n?\s*\[Thought:\s*true\]\s*/i)
-    .map((segment) => segment.trim())
-    .filter(Boolean);
-
-  if (segments.length < 2) {
-    return null;
-  }
-
-  return segments.map((segment, index) => ({
-    content: segment,
-    isThinking: index < segments.length - 1,
-  }));
-}
-
-// Exported for testing only
 export function normalizePersistedGeminiAssistantEntries(content) {
   const normalizedContent = typeof content === 'string'
     ? stripInternalContextPrefix(content, false)
@@ -165,7 +145,7 @@ export function normalizePersistedGeminiAssistantEntries(content) {
   }
 
   return legacySegments.map((segment) => segment.isThinking
-    ? { type: 'thinking', content: segment.content }
+    ? { role: 'assistant', type: 'thinking', content: segment.content }
     : { role: 'assistant', content: segment.content, type: 'message' }
   );
 }
