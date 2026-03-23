@@ -234,7 +234,17 @@
     "runCommand": "在 {{projectName}} 中运行 {{command}}",
     "openTerminal": "在 {{projectName}} 中打开终端",
     "startCli": "在 {{projectName}} 中启动 Claude CLI",
+    "historyEdit": {
+      "action": "修改历史输入",
+      "promptTitle": "请在 Shell 中完成历史编辑",
+      "promptDescription": "Web Chat 不直接改写历史消息。如需使用模型原生的编辑、撤回或重试能力，请前往 Shell 操作。",
+      "cancel": "取消",
+      "confirm": "前往 Shell",
+      "bannerTitle": "当前会话已切换到 Shell",
+      "bannerDescription": "请在这里使用模型原生的历史编辑、撤回或重试能力。Web Chat 仅展示对话，不直接改写历史。"
+    },
     "workspace": {
+      "currentSession": "当前会话",
       "newShell": "新建 Shell",
       "tabTitle": "Shell {{index}}",
       "closeShell": "关闭 {{title}}"

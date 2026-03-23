@@ -52,6 +52,7 @@ interface ChatMessagesPaneProps {
   onFileOpen?: (filePath: string, diffInfo?: unknown) => void;
   onShowSettings?: () => void;
   onGrantToolPermission: (suggestion: { entry: string; toolName: string }) => { success: boolean };
+  onSuggestShellEdit?: () => void;
   autoExpandTools?: boolean;
   showRawParameters?: boolean;
   showThinking?: boolean;
@@ -99,6 +100,7 @@ export default function ChatMessagesPane({
   onFileOpen,
   onShowSettings,
   onGrantToolPermission,
+  onSuggestShellEdit,
   autoExpandTools,
   showRawParameters,
   showThinking,
@@ -142,6 +144,25 @@ export default function ChatMessagesPane({
     () => groupMessagesIntoTurns(visibleMessages, isLoading),
     [visibleMessages, isLoading]
   );
+  const latestEditableUserMessage = useMemo(() => {
+    if (!selectedSession) {
+      return null;
+    }
+
+    for (let index = chatMessages.length - 1; index >= 0; index -= 1) {
+      const message = chatMessages[index];
+      if (
+        message.type === 'user' &&
+        !message.isSkillContent &&
+        typeof message.content === 'string' &&
+        message.content.trim()
+      ) {
+        return message;
+      }
+    }
+
+    return null;
+  }, [chatMessages, selectedSession]);
 
   return (
     <div
@@ -305,6 +326,8 @@ export default function ChatMessagesPane({
                   onFileOpen={onFileOpen}
                   onShowSettings={onShowSettings}
                   onGrantToolPermission={onGrantToolPermission}
+                  canSuggestShellEdit={item.message === latestEditableUserMessage}
+                  onSuggestShellEdit={item.message === latestEditableUserMessage ? onSuggestShellEdit : undefined}
                   autoExpandTools={autoExpandTools}
                   showRawParameters={showRawParameters}
                   showThinking={showThinking}

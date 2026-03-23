@@ -234,7 +234,17 @@
     "runCommand": "{{projectName}}에서 {{command}} 실행",
     "openTerminal": "{{projectName}}에서 터미널 열기",
     "startCli": "{{projectName}}에서 Claude CLI 시작",
+    "historyEdit": {
+      "action": "대화 기록 수정",
+      "promptTitle": "기록 수정은 Shell에서 진행하세요",
+      "promptDescription": "Web Chat은 대화 기록을 직접 수정하지 않습니다. 모델의 원래 편집, 되돌리기, 재시도 흐름은 Shell에서 사용하세요.",
+      "cancel": "취소",
+      "confirm": "Shell로 이동",
+      "bannerTitle": "현재 세션이 Shell에 연결되었습니다",
+      "bannerDescription": "모델의 원래 기록 수정, 되돌리기, 재시도 흐름은 여기서 사용하세요. Web Chat은 대화를 표시만 하고 기록을 직접 수정하지 않습니다."
+    },
     "workspace": {
+      "currentSession": "현재 세션",
       "newShell": "새 Shell",
       "tabTitle": "Shell {{index}}",
       "closeShell": "{{title}} 닫기"

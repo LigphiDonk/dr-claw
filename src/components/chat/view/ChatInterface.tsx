@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QuickSettingsPanel from '../../QuickSettingsPanel';
 import ChatTaskProgressPill from './subcomponents/ChatTaskProgressPill';
 import { useTasksSettings } from '../../../contexts/TasksSettingsContext';
@@ -91,12 +91,14 @@ function ChatInterface({
   clearPendingAutoIntake,
   importedProjectAnalysisPrompt,
   clearImportedProjectAnalysisPrompt,
+  onOpenShellForSession,
   newSessionMode = 'research',
   onNewSessionModeChange,
 }: ChatInterfaceProps) {
   const { tasksEnabled, isTaskMasterInstalled } = useTasksSettings();
   const { refreshTasks } = useTaskMaster();
   const { t } = useTranslation('chat');
+  const [isShellEditPromptOpen, setIsShellEditPromptOpen] = useState(false);
 
   const streamBufferRef = useRef('');
   const streamTimerRef = useRef<number | null>(null);
@@ -462,6 +464,10 @@ function ChatInterface({
   }, [onNewSessionModeChange, selectedSession?.id, selectedSession?.mode]);
 
   useEffect(() => {
+    setIsShellEditPromptOpen(false);
+  }, [selectedProject?.name, selectedSession?.id]);
+
+  useEffect(() => {
     if (!isLoading || !canAbortSession) {
       return;
     }
@@ -566,6 +572,22 @@ function ChatInterface({
     setProvider,
     submitProgrammaticInput,
   ]);
+
+  const handleOpenShellEditPrompt = useCallback(() => {
+    if (!selectedSession || !onOpenShellForSession) {
+      return;
+    }
+    setIsShellEditPromptOpen(true);
+  }, [onOpenShellForSession, selectedSession]);
+
+  const handleCloseShellEditPrompt = useCallback(() => {
+    setIsShellEditPromptOpen(false);
+  }, []);
+
+  const handleConfirmOpenShell = useCallback(() => {
+    setIsShellEditPromptOpen(false);
+    onOpenShellForSession?.();
+  }, [onOpenShellForSession]);
 
   if (!selectedProject) {
     const selectedProviderLabel =
@@ -705,6 +727,7 @@ function ChatInterface({
           onFileOpen={onFileOpen}
           onShowSettings={onShowSettings}
           onGrantToolPermission={handleGrantToolPermission}
+          onSuggestShellEdit={handleOpenShellEditPrompt}
           autoExpandTools={autoExpandTools}
           showRawParameters={showRawParameters}
           showThinking={showThinking}
@@ -801,6 +824,33 @@ function ChatInterface({
           onTranscript={handleTranscript}
         />
       </div>
+
+      {isShellEditPromptOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={handleCloseShellEditPrompt}
+          />
+          <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-background shadow-2xl">
+            <div className="px-5 py-4">
+              <h3 className="text-base font-semibold text-foreground">
+                {t('shell.historyEdit.promptTitle')}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {t('shell.historyEdit.promptDescription')}
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-4">
+              <Button variant="outline" onClick={handleCloseShellEditPrompt}>
+                {t('shell.historyEdit.cancel')}
+              </Button>
+              <Button onClick={handleConfirmOpenShell}>
+                {t('shell.historyEdit.confirm')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <QuickSettingsPanel />
     </>

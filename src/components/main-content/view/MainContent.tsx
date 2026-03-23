@@ -244,6 +244,7 @@ function MainContent({
                 clearPendingAutoIntake={clearPendingAutoIntake}
                 importedProjectAnalysisPrompt={importedProjectAnalysisPrompt}
                 clearImportedProjectAnalysisPrompt={clearImportedProjectAnalysisPrompt}
+                onOpenShellForSession={() => setActiveTab('shell')}
                 newSessionMode={newSessionMode}
                 onNewSessionModeChange={onNewSessionModeChange}
               />
@@ -262,7 +263,7 @@ function MainContent({
 
           {activeTab === 'shell' && (
             <div className="h-full w-full overflow-hidden">
-              <ShellWorkspace project={selectedProject} />
+              <ShellWorkspace project={selectedProject} session={selectedSession} />
             </div>
           )}
 

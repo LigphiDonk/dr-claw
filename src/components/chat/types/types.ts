@@ -134,6 +134,7 @@ export interface ChatInterfaceProps {
   clearPendingAutoIntake?: () => void;
   importedProjectAnalysisPrompt?: ImportedProjectAnalysisPrompt | null;
   clearImportedProjectAnalysisPrompt?: () => void;
+  onOpenShellForSession?: () => void;
   initialInputDraft?: string | null;
   newSessionMode?: SessionMode;
   onNewSessionModeChange?: (mode: SessionMode) => void;

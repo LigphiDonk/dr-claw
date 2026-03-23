@@ -28,6 +28,8 @@ interface MessageComponentProps {
   onFileOpen?: (filePath: string, diffInfo?: unknown) => void;
   onShowSettings?: () => void;
   onGrantToolPermission?: (suggestion: PermissionSuggestion) => PermissionGrantResult | null | undefined;
+  canSuggestShellEdit?: boolean;
+  onSuggestShellEdit?: () => void;
   autoExpandTools?: boolean;
   showRawParameters?: boolean;
   showThinking?: boolean;
@@ -63,7 +65,7 @@ function extractSkillContentTitle(content: string, fallback: string): string {
   return fallback;
 }
 
-const MessageComponent = memo(({ message, index, prevMessage, createDiff, onFileOpen, onShowSettings, onGrantToolPermission, autoExpandTools, showRawParameters, showThinking, hideThinkingFold, selectedProject, provider }: MessageComponentProps) => {
+const MessageComponent = memo(({ message, index, prevMessage, createDiff, onFileOpen, onShowSettings, onGrantToolPermission, canSuggestShellEdit, onSuggestShellEdit, autoExpandTools, showRawParameters, showThinking, hideThinkingFold, selectedProject, provider }: MessageComponentProps) => {
   const { t } = useTranslation('chat');
   const isGrouped = prevMessage && prevMessage.type === message.type &&
                    ((prevMessage.type === 'assistant') ||
@@ -163,6 +165,18 @@ const MessageComponent = memo(({ message, index, prevMessage, createDiff, onFile
               </div>
             )}
           </div>
+          {canSuggestShellEdit && onSuggestShellEdit && (
+            <div className="mb-1.5 mr-1">
+              <button
+                type="button"
+                onClick={onSuggestShellEdit}
+                className="text-[11px] font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                title={t('shell.historyEdit.action')}
+              >
+                {t('shell.historyEdit.action')}
+              </button>
+            </div>
+          )}
           <div className="bg-blue-600 text-white rounded-2xl rounded-tr-none px-4 py-2.5 shadow-sm max-w-[90%] sm:max-w-[85%]">
             <div className="text-[15px] whitespace-pre-wrap break-words leading-relaxed">
               {message.content}

@@ -272,9 +272,54 @@ const PTY_SESSION_TIMEOUT = 30 * 60 * 1000;
 const SHELL_URL_PARSE_BUFFER_LIMIT = 32768;
 const ANSI_ESCAPE_SEQUENCE_REGEX = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1B\\))/g;
 const TRAILING_URL_PUNCTUATION_REGEX = /[)\]}>.,;:!?]+$/;
+const REPLAY_TERMINAL_QUERY_REGEXES = [
+    /\x1B\[[>?0-9;]*c/g,
+    /\x1B\[[0-9;?]*n/g,
+    /\x1B\[\?[0-9;]*\$p/g,
+];
+const SHELL_EMBEDDED_ENV_KEYS_TO_REMOVE = [
+    'TERM_PROGRAM',
+    'TERM_PROGRAM_VERSION',
+    'ITERM_SESSION_ID',
+    'LC_TERMINAL',
+    'LC_TERMINAL_VERSION',
+    'WT_SESSION',
+];
 
 function stripAnsiSequences(value = '') {
     return value.replace(ANSI_ESCAPE_SEQUENCE_REGEX, '');
+}
+
+function stripReplayTerminalQueries(value = '') {
+    return REPLAY_TERMINAL_QUERY_REGEXES.reduce(
+        (currentValue, regex) => currentValue.replace(regex, ''),
+        value,
+    );
+}
+
+function buildEmbeddedShellEnv(baseEnv = process.env) {
+    const env = {
+        ...baseEnv,
+        TERM: 'xterm-256color',
+        COLORTERM: 'truecolor',
+        FORCE_COLOR: '3'
+    };
+
+    SHELL_EMBEDDED_ENV_KEYS_TO_REMOVE.forEach((key) => {
+        delete env[key];
+    });
+
+    Object.keys(env).forEach((key) => {
+        if (
+            key.startsWith('VSCODE_') ||
+            key.startsWith('FIG_') ||
+            key.startsWith('QTERM_')
+        ) {
+            delete env[key];
+        }
+    });
+
+    return env;
 }
 
 function normalizeDetectedUrl(url) {
@@ -1634,9 +1679,13 @@ function handleShellConnection(ws) {
                     if (existingSession.buffer && existingSession.buffer.length > 0) {
                         console.log(`📜 Sending ${existingSession.buffer.length} buffered messages`);
                         existingSession.buffer.forEach(bufferedData => {
+                            const replayData = stripReplayTerminalQueries(bufferedData);
+                            if (!replayData) {
+                                return;
+                            }
                             ws.send(JSON.stringify({
                                 type: 'output',
-                                data: bufferedData
+                                data: replayData
                             }));
                         });
                     }
@@ -1798,12 +1847,7 @@ function handleShellConnection(ws) {
                         cols: termCols,
                         rows: termRows,
                         cwd: spawnCwd,
-                        env: {
-                            ...process.env,
-                            TERM: 'xterm-256color',
-                            COLORTERM: 'truecolor',
-                            FORCE_COLOR: '3'
-                        }
+                        env: buildEmbeddedShellEnv(process.env)
                     });
 
                     console.log('🟢 Shell process started with PTY, PID:', shellProcess.pid);

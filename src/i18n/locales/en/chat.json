@@ -234,7 +234,17 @@
     "runCommand": "Run {{command}} in {{projectName}}",
     "openTerminal": "Open terminal in {{projectName}}",
     "startCli": "Starting Claude CLI in {{projectName}}",
+    "historyEdit": {
+      "action": "Edit message history",
+      "promptTitle": "Continue history edits in Shell",
+      "promptDescription": "Web Chat does not rewrite message history directly. To use the model's native edit, rewind, or retry flow, continue in Shell.",
+      "cancel": "Cancel",
+      "confirm": "Open Shell",
+      "bannerTitle": "This session is now open in Shell",
+      "bannerDescription": "Use the model's native history edit, rewind, or retry flow here. Web Chat only displays the conversation and does not rewrite history directly."
+    },
     "workspace": {
+      "currentSession": "Current Session",
       "newShell": "New shell",
       "tabTitle": "Shell {{index}}",
       "closeShell": "Close {{title}}"
