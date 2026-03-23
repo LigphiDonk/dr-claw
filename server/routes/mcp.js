@@ -5,10 +5,26 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { spawn } from 'child_process';
+import { resolveAvailableCliCommand } from '../utils/cliResolution.js';
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+async function resolveClaudeCommand() {
+  return await resolveAvailableCliCommand({
+    envVarName: 'CLAUDE_CLI_PATH',
+    defaultCommands: ['claude'],
+    appendWindowsSuffixes: true
+  }) || 'claude';
+}
+
+function getSpawnOptions(options = {}) {
+  return {
+    ...options,
+    shell: process.platform === 'win32'
+  };
+}
 
 // Claude CLI command routes
 
@@ -17,13 +33,11 @@ router.get('/cli/list', async (req, res) => {
   try {
     console.log('📋 Listing MCP servers using Claude CLI');
     
-    const { spawn } = await import('child_process');
-    const { promisify } = await import('util');
-    const exec = promisify(spawn);
-    
-    const process = spawn('claude', ['mcp', 'list'], {
+    const claudeCmd = await resolveClaudeCommand();
+
+    const process = spawn(claudeCmd, ['mcp', 'list'], getSpawnOptions({
       stdio: ['pipe', 'pipe', 'pipe']
-    });
+    }));
     
     let stdout = '';
     let stderr = '';
@@ -67,8 +81,8 @@ router.post('/cli/add', async (req, res) => {
     
     console.log(`➕ Adding MCP server using Claude CLI (${scope} scope):`, name);
     
-    const { spawn } = await import('child_process');
-    
+    const claudeCmd = await resolveClaudeCommand();
+
     let cliArgs = ['mcp', 'add'];
     
     // Add scope flag
@@ -111,20 +125,20 @@ router.post('/cli/add', async (req, res) => {
       console.log('📁 Running in project directory:', projectPath);
     }
     
-    const process = spawn('claude', cliArgs, spawnOptions);
-    
+    const process = spawn(claudeCmd, cliArgs, getSpawnOptions(spawnOptions));
+
     let stdout = '';
     let stderr = '';
     let sent = false;
-    
+
     process.stdout.on('data', (data) => {
       stdout += data.toString();
     });
-    
+
     process.stderr.on('data', (data) => {
       stderr += data.toString();
     });
-    
+
     process.on('close', (code) => {
       if (sent) return;
       sent = true;
@@ -188,8 +202,8 @@ router.post('/cli/add-json', async (req, res) => {
       });
     }
     
-    const { spawn } = await import('child_process');
-    
+    const claudeCmd = await resolveClaudeCommand();
+
     // Build the command: claude mcp add-json --scope <scope> <name> '<json>'
     const cliArgs = ['mcp', 'add-json', '--scope', scope, name];
     
@@ -209,20 +223,20 @@ router.post('/cli/add-json', async (req, res) => {
       console.log('📁 Running in project directory:', projectPath);
     }
     
-    const process = spawn('claude', cliArgs, spawnOptions);
-    
+    const process = spawn(claudeCmd, cliArgs, getSpawnOptions(spawnOptions));
+
     let stdout = '';
     let stderr = '';
     let sent = false;
-    
+
     process.stdout.on('data', (data) => {
       stdout += data.toString();
     });
-    
+
     process.stderr.on('data', (data) => {
       stderr += data.toString();
     });
-    
+
     process.on('close', (code) => {
       if (sent) return;
       sent = true;
@@ -265,8 +279,8 @@ router.delete('/cli/remove/:name', async (req, res) => {
     
     console.log('🗑️ Removing MCP server using Claude CLI:', actualName, 'scope:', actualScope);
     
-    const { spawn } = await import('child_process');
-    
+    const claudeCmd = await resolveClaudeCommand();
+
     // Build command args based on scope
     let cliArgs = ['mcp', 'remove'];
     
@@ -282,9 +296,9 @@ router.delete('/cli/remove/:name', async (req, res) => {
     
     console.log('🔧 Running Claude CLI command:', 'claude', cliArgs.join(' '));
     
-    const process = spawn('claude', cliArgs, {
+    const process = spawn(claudeCmd, cliArgs, getSpawnOptions({
       stdio: ['pipe', 'pipe', 'pipe']
-    });
+    }));
     
     let stdout = '';
     let stderr = '';
@@ -328,11 +342,11 @@ router.get('/cli/get/:name', async (req, res) => {
     
     console.log('📄 Getting MCP server details using Claude CLI:', name);
     
-    const { spawn } = await import('child_process');
-    
-    const process = spawn('claude', ['mcp', 'get', name], {
+    const claudeCmd = await resolveClaudeCommand();
+
+    const process = spawn(claudeCmd, ['mcp', 'get', name], getSpawnOptions({
       stdio: ['pipe', 'pipe', 'pipe']
-    });
+    }));
     
     let stdout = '';
     let stderr = '';
