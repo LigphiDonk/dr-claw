@@ -161,7 +161,7 @@ Open your browser at `http://localhost:5173` (or the port you configured in `.en
 #### Option B: Terminal Only
 
 <p align="center">
-  <img src="public/screenshots/terminal_example1.png" alt="Terminal workflow example" width="500">
+  <img src="public/screenshots/terminal_example1.png" alt="Terminal workflow example" width="800">
 </p>
 
 Open a **second terminal** (keep `npm run dev` running in the first) and install the `drclaw` CLI harness:
